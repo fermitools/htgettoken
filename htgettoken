@@ -1,0 +1,365 @@
+#!/usr/bin/python3
+import kerberos
+import os
+import sys
+import socket
+import ssl
+import string
+import json
+import re
+import shlex
+from optparse import OptionParser
+from http import client as http_client
+from urllib import request as urllib_request
+from urllib import parse as urllib_parse
+from M2Crypto import SSL, X509, EVP, RSA, ASN1, m2
+from OpenSSL import crypto
+
+prog = "htgettoken"
+version = "0.1"
+
+# get the default certificates paths for this platform
+_default_cafile = '/etc/ssl/certs/ca-certificates.crt'  # debian
+_default_capath = "/etc/grid-security/certificates"
+_paths = ssl.get_default_verify_paths()
+# always prefer python's default cafile
+if _paths.cafile:
+    _default_cafile = _paths.cafile
+# prefer grid-security default capath
+if _paths.capath and not os.path.isdir(_default_capath):
+    _default_capath = _paths.capath
+if not os.path.isfile(_default_cafile or ''):  # use ca-certificates file:
+    _default_cafile = "/etc/pki/tls/cert.pem"
+
+defaults = {
+    "cafile": _default_cafile,
+    "capath": _default_capath,
+}
+
+# these are global
+options = None
+showprogress = False
+
+
+def usage(parser, msg):
+    print(prog + ": " + msg + '\n', file=sys.stderr)
+    parser.print_help(sys.stderr)
+    sys.exit(2)
+
+
+def fatal(msg, code=1):
+    if (options is None) or not options.quiet:
+        if showprogress:
+            print()
+        print(prog + ": " + msg, file=sys.stderr)
+    sys.exit(code)
+
+
+# print exception type name and contents after fatal error message
+def efatal(msg, e, code=1):
+    fatal(msg + ': ' + type(e).__name__ + ': ' + str(e), code)
+
+
+
+# Make a wrapper so a SSL Connection object can be opened as a file
+# this is mostly from
+# http://git.ganeti.org/?p=ganeti.git;a=commitdiff;h=beba56ae8;hp=70c815118f7f8bf151044cb09868d1e3d7a63ac8
+class _SslSocketWrapper(object):
+    def __init__(self, conn):
+        self._conn = conn
+
+    def __getattr__(self, name):
+        # forward everything to underlying connection
+        return getattr(self._conn, name)
+
+    def makefile(self, mode, bufsize=0):
+        try:
+            return socket.SocketIO(self._conn, mode)
+        except AttributeError:  # python < 3
+            return socket._fileobject(self._conn, mode, bufsize)
+
+    def close(self):
+        # m2crypto always shuts down the SSL connection in the connection
+        #  close() function
+        ret = self._conn.close()
+        if (self._conn.get_shutdown() & 1) != 1:
+            print(prog + " program warning: close did not send shutdown", file=sys.stderr)
+        return ret
+
+# validate a certificate on an HTTPS connection with M2Crypto
+class CertValidatingHTTPSConnection(http_client.HTTPConnection):
+    default_port = http_client.HTTPS_PORT
+
+    def __init__(self, host, port=None, key_file=None, cert_file=None,
+                 cert_chain_file=None, cafile=None, capath=None, **kwargs):
+        http_client.HTTPConnection.__init__(self, host, port, **kwargs)
+        self.host = host
+        self.port = port
+        self.key_file = key_file
+        self.cert_file = cert_file
+        self.cert_chain_file = cert_chain_file
+        self.cafile = cafile
+        self.capath = capath
+
+    def connect(self):
+        # 'sslv23' actually means to accept all, then we turn off
+        #   insecure sslv2 & sslv3
+        context = SSL.Context('sslv23')
+        # many websites say to disable SSL compression for CRIME attack
+        #  but unfortunately m2crypto doesn't have a constant for it
+        SSL_OP_NO_COMPRESSION = 0x00020000
+        context.set_options(m2.SSL_OP_NO_SSLv2 |
+                            m2.SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION)
+        # the example used for M2Crypto connections was mostly
+        #   https://www.heikkitoivonen.net/blog/2008/10/14/ssl-in-python-26/
+        if (self.cert_file is not None) or (self.key_file is not None):
+            context.load_cert(self.cert_file, self.key_file)
+        if self.cert_chain_file is not None:
+            context.load_cert_chain(self.cert_chain_file)
+        # Note that m2crypto does not verify CRLs.  There is an
+        # extension package m2ext that does, but ignoring CRLs for the
+        # well-managed servers that cigetcert connects to is deemed to
+        # be an acceptable risk.
+        context.set_verify(
+            SSL.verify_peer | SSL.verify_fail_if_no_peer_cert, depth=9)
+        if context.load_verify_locations(self.cafile, self.capath) != 1:
+            raise RuntimeError('Could not load verify locations ' +
+                               str(self.cafile) + ' ' + str(self.capath))
+        # The following cipher list is from "Disable weak ciphers" on
+        # https://www.owasp.org/index.php/Transport_Layer_Protection_Cheat_Sheet
+        # combined with the openssl man page at
+        # https://www.openssl.org/docs/manmaster/apps/ciphers.html
+        # You can see what remains by passing this list to
+        #   openssl ciphers -v.
+        if context.set_cipher_list('DEFAULT:!eNULL:!aNULL:!ADH:!EXP:!LOW:!MD5:!IDEA:!RC4:@STRENGTH') != 1:
+            print("No valid ciphers")
+        sslconn = SSL.Connection(context)
+        if "settimeout" in dir(SSL.Connection):
+            # this improves the error message when it is available
+            # from "Operation now in progress" to "timed out"
+            sslconn.settimeout(15)
+        timeout = SSL.timeout(15)
+        sslconn.set_socket_read_timeout(timeout)
+        sslconn.set_socket_write_timeout(timeout)
+        sslconn.connect((self.host, self.port))
+        self.sock = _SslSocketWrapper(sslconn)
+
+class VerifiedHTTPSHandler(urllib_request.HTTPSHandler):
+    def __init__(self, **kwargs):
+        urllib_request.HTTPSHandler.__init__(self)
+        self._connection_args = kwargs
+
+    def https_open(self, req):
+        def http_class_wrapper(netloc, **kwargs):
+            full_kwargs = dict(self._connection_args)
+            full_kwargs.update(kwargs)
+            p = urllib_parse.urlsplit('https://'+netloc)
+            return CertValidatingHTTPSConnection(p.hostname, p.port, **full_kwargs)
+
+        return self.do_open(http_class_wrapper, req)
+
+    # also don't raise an exception for 401 Not authorized errors
+    def http_error_401(self, request, response, code, msg, hdrs):
+        return response
+
+
+# function from http://stackoverflow.com/questions/4407539/python-how-to-make-an-option-to-be-required-in-optparse
+def checkRequiredOptions(parser):
+    missing_options = []
+    for option in parser.option_list:
+        if (re.search(r'\(required\)$', option.help) and
+                eval('options.' + option.dest) is None):
+            missing_options.extend(option._long_opts)
+    if len(missing_options) > 0:
+        usage(parser, "Missing required parameters: " + str(missing_options))
+
+
+# This is a function because it has to be done after both times
+#  the options are processed.
+def parseargs(parser, argv):
+    global options
+    (options, args) = parser.parse_args(argv)
+    if len(args) != 0:
+        usage(parser, "no non-option arguments expected")
+
+    # This is done here because capath may be needed to retrieve
+    #  the options file.
+    if options.capath is None:
+        options.capath = os.getenv('X509_CERT_DIR') or defaults['capath']
+
+
+### htgettoken main ####
+def main():
+    global options
+    usagestr = "usage: %prog [-h] [otheroptions]"
+    parser = OptionParser(usage=usagestr, version=version, prog=prog)
+
+    parser.add_option("-v", "--verbose",
+                      action="store_true", default=False,
+                      help="write detailed progress to stdout")
+    parser.add_option("-d", "--debug",
+                      action="store_true", default=False,
+                      help="write debug output to stdout (implies -v)")
+    parser.add_option("-q", "--quiet",
+                      action="store_true", default=False,
+                      help="do not print progress or error messages")
+    parser.add_option("-s", "--optserver",
+                      metavar="HostOrURL",
+                      help="server or URL with default %s options" % prog)
+    parser.add_option("-a", "--vaultserver",
+                      metavar="HostOrURL",
+                      help="vault server or URL (required)")
+    parser.add_option("-o", "--out",
+                      metavar="path",
+                      help="file path to save bearer token " +
+                        "[default: $BEARER_TOKEN_FILE or $XDG_RUNTIME_DIR/bt_u%uid]")
+    parser.add_option("", "--cafile",
+                      metavar="file", default=defaults['cafile'],
+                      help="Certifying Authority certificates bundle file")
+    parser.add_option("", "--capath",
+                      metavar="path",
+                      help="Certifying Authority certificates directory " +
+                      '[default: $X509_CERT_DIR or ' +
+                      defaults['capath'] + ']')
+
+    # add default value (if any) to the help messages that are strings
+    for option in parser.option_list:
+        if (option.default != ("NO", "DEFAULT")) and (option.action == "store"):
+            option.help += " [default: %default]"
+
+    # look for default options in the environment
+    envopts = os.getenv("HTGETTOKENOPTS", "")
+    envargs = shlex.split(envopts, True)
+
+    parseargs(parser, envargs + sys.argv[1:])
+
+    httpshandler = VerifiedHTTPSHandler(
+        cafile=options.cafile, capath=options.capath)
+    if options.debug:
+        httpshandler.set_http_debuglevel(1)
+    opener = urllib_request.build_opener(httpshandler)
+
+    if options.optserver is not None:
+        # read additional options from optserver
+        optserver = options.optserver
+        if '://' not in optserver:
+            optserver = 'https://' + optserver + '/' + prog + 'opts.txt'
+        if options.verbose or options.debug:
+            print("Fetching options from " + optserver)
+        optrequest = urllib_request.Request(url=optserver)
+        try:
+            opthandle = opener.open(optrequest)
+        except Exception as e:
+            efatal("fetch of options from %s failed" % optserver, e)
+        opts = opthandle.read()
+        if isinstance(opts, bytes):
+            opts = str(opts.decode('utf-8'))
+        opthandle.close()
+        if options.debug:
+            print("##### Begin additional options")
+            print(opts)
+            print("##### End additional options")
+        try:
+            serverargs = shlex.split(opts, True)
+        except Exception as e:
+            efatal("parsing options from %s failed" % optserver, e)
+
+        parseargs(parser, serverargs + envargs + sys.argv[1:])
+
+    checkRequiredOptions(parser)
+
+    # set implied options
+    if options.debug:
+        options.verbose = True
+
+    # calculate defaults for options that are too complex for "default" keyword
+    if options.out is None:
+        options.out = os.getenv("BEARER_TOKEN_FILE")
+        if options.out is None:
+            tmpdir = os.getenv("XDG_RUNTIME_DIR")
+            if tmpdir is None:
+                tmpdir = '/tmp'
+            options.out = tmpdir + "/bt_u%uid"
+
+    # Check to see if an adequate bearer token already exists
+    myproxyusername = options.myproxyusername.replace("%username", username)
+    outfile = options.out.replace("%uid", str(os.geteuid()))
+    if os.path.exists(outfile):
+        try:
+            with open(outfile, 'r') as file:
+                jwtstr = file.read().strip()
+            jwtopts = {'verify_signature': False)
+            jwtdict = jwt.decode(jwtstr, options=jwtopts)
+        except Exception as e:
+            if options.debug:
+                print('Could not load ' + outfile + ': ' +
+                      type(e).__name__ + ': ' + str(e), e)
+        else:
+            if options.verbose:
+                print("Checking if %s has at least %s seconds left" %
+                      (outfile, options.minsecs))
+            elif showprogress:
+                sys.stdout.write('Checking if ' + outfile +
+                                 ' can be reused ...')
+                sys.stdout.flush()
+
+                # check remaining seconds here
+
+            if showprogress:
+                print(" no")
+
+
+    # Try kerberos authentication with vault
+    vaultserver = options.vaultserver
+    if '://' not in vaultserver:
+        vaultserver = 'https://' + vaultserver
+
+    parts = vaultserver.split('/')
+    if ':' not in parts[2]:
+        vaultserver = vaultserver + ':8200'
+
+    service = "host@" + parts[2].split(':')[0]
+    if options.verbose:
+        print('Initializing kerberos client for', service)
+    __, vc = kerberos.authGSSClientInit(service=service, mech_oid=kerberos.GSS_MECH_OID_SPNEGO)
+    kerberos.authGSSClientStep(vc, "")
+    kerberos_token = kerberos.authGSSClientResponse(vc)
+    if options.debug:
+        print('Kerberos token:', kerberos_token)
+
+    url = str(vaultserver) + "/v1/auth/kerberos/login"
+    if options.verbose:
+        print('Negotiating kerberos with vault', url)
+    request = urllib_request.Request(url=url,
+                      headers={'Authorization': 'Negotiate ' + kerberos_token},
+                      data=''.encode('ascii')  # empty data is to force a POST
+                      )
+    try:
+        handle = opener.open(request)
+    except Exception as e:
+        efatal("Kerberos negotiate with %s failed" % url, e)
+
+    body = handle.read()
+    if options.debug:
+        print("##### Begin vault kerberos response")
+        print(body)
+        print("##### End vault kerberos response")
+    response = json.loads(body)
+    if 'auth' in response and response['auth'] is not None:
+        vaulttoken=response['auth']['client_token']
+        print('Vault token:', vaulttoken)
+        with open(os.path.expanduser("~/.vault-token"), "w") as file:
+            file.write(vaulttoken)
+    else:
+        print('Authentication failed')
+        if 'warnings' in response:
+            for warning in response['warnings']:
+                print('  ' + warning)
+        if 'errors' in response:
+            for error in response['errors']:
+                print('  ' + error)
+        exit(1)
+
+
+if __name__ == '__main__':
+    main()
