@@ -1,4 +1,18 @@
 #!/usr/bin/python
+#
+# htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
+#
+# Nonstandard python libraries required:
+#  m2crypto
+#  pyOpenSSL
+#  python-kerberos
+#
+# This source file is Copyright (c) 2020, FERMI NATIONAL
+#   ACCELERATOR LABORATORY.  All rights reserved.
+#
+# For details of the Fermitools (BSD) license see COPYING
+#
+# Author: Dave Dykstra dwd@fnal.gov
 
 from __future__ import print_function
 
