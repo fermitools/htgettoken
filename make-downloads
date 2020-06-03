@@ -1,0 +1,15 @@
+#!/bin/bash
+
+BASE=htgettoken-downloads
+set -ex
+cd "`dirname $0`"
+rm -rf $BASE
+mkdir $BASE
+PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
+pip3 $PIPOPTS pyinstaller
+pip3 $PIPOPTS m2crypto
+pip3 $PIPOPTS pyOpenSSL
+pip3 $PIPOPTS kerberos
+pip3 $PIPOPTS jwt
+tar czvf $BASE.tar.gz $BASE
+rm -rf $BASE

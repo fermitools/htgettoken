@@ -9,6 +9,8 @@ URL: https://github.com/fermitools/htgettoken
 # $ curl -o htgettoken-%{version}.tar.gz \
 #    https://codeload.github.com/fermitools/htgettoken/tar.gz/%{version}
 Source0: %{name}-%{version}.tar.gz
+# recreate this with make-downloads
+Source1: %{name}-downloads.tar.gz
 BuildRequires: python3-pip
 BuildRequires: python3-devel
 
@@ -18,21 +20,23 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 # set nil out debug_package here to avoid stripping
 %global debug_package %{nil}
 
+# eliminate .buid-id links on el8, they make python packages clash
+%global _build_id_links none
+
 %prep
 %setup -q
+%setup -b 1 -n %{name}-downloads -q
 
 %build
-(
-PYDIR=$PWD/python
-#PIPOPTS="--disable-pip-version-check --no-cache-dir install --install-option=--prefix=$PYDIR"
-HOME=$PYDIR
-PYDIR=$PYDIR/.local
-PIPOPTS="--disable-pip-version-check --no-cache-dir install --user"
-pip3 $PIPOPTS pyinstaller
-pip3 $PIPOPTS m2crypto
-pip3 $PIPOPTS pyOpenSSL
-pip3 $PIPOPTS kerberos
-pip3 $PIPOPTS jwt
+# starts out in htgettoken-downloads
+
+# install in reverse order of their download (because dependency downloads
+#   come after requested packages)
+HOME=$PWD pip3 install --no-cache-dir --user $(echo $(find . -type f | grep -v "/.local"| tac))
+
+PYDIR=$PWD/.local
+
+cd ../%{name}-%{version}
 
 PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`" $PYDIR/bin/pyinstaller --noconfirm --noconsole --clean --log-level=WARN %{name}
 # "from M2Crypto import _m2crypto" gets confused without this:
@@ -41,10 +45,12 @@ cd dist/%{name}/M2Crypto
 ln -s ../_m2crypto* .
 cd -
 find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
-)
 
 
 %install
+# starts out in htgettoken-downloads
+cd ../%{name}-%{version}
+
 rm -rf $RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
