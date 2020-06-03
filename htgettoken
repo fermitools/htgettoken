@@ -1,11 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 #
 # Nonstandard python libraries required:
 #  m2crypto
 #  pyOpenSSL
-#  python-kerberos
+#  kerberos
+#  jwt
 #
 # This source file is Copyright (c) 2020, FERMI NATIONAL
 #   ACCELERATOR LABORATORY.  All rights reserved.
@@ -22,6 +23,7 @@ import socket
 import ssl
 import string
 import json
+import jwt
 import re
 import shlex
 import tempfile
@@ -31,6 +33,8 @@ try:
     from http import client as http_client
     from urllib import request as urllib_request
     from urllib import parse as urllib_parse
+    # the following is just a hint for pyinstaller
+    from http import cookies as http_cookies
 except ImportError: # python < 3
     import httplib as http_client
     import urllib2 as urllib_request
@@ -215,15 +219,23 @@ def parseargs(parser, argv):
 
 # Read a bearer token from vault
 def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
+    if showprogress:
+        sys.stdout.write('Attempting to get token from ' + vaultserver +
+                         ' ...')
+        sys.stdout.flush()
     url = vaultserver + '/v1/' + vaultpath
     headers = {'X-Vault-Token': vaulttoken}
     request = urllib_request.Request(url=url, headers=headers)
+    handle = None
     try:
         handle = opener.open(request)
     except Exception as e:
         if options.debug:
             print("read of token from %s failed: %s" % (url, str(e)))
-        handle.close()
+        if handle is not None:
+            handle.close()
+        if showprogress:
+            print(" failed")
         return None
     body = handle.read()
     if options.debug:
@@ -236,8 +248,43 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
     except Exception as e:
         efatal("decoding response from %s failed" % url, e)
     if 'data' in response and 'access_token' in response['data']:
+        if showprogress:
+            print(" succeeded")
         return response['data']['access_token']
+    if showprogress:
+        print(" failed")
     return None
+
+
+# safely write out a token to where it might be a world-writable
+#  directory
+def writeTokenSafely(token, outfile):
+    # Attempt to remove the file first in case it exists, because os.O_EXCL
+    #  requires it to be gone.  Need to use os.O_EXCL to prevent somebody
+    #  else from pre-creating the file in order to steal credentials.
+    try:
+        os.remove(outfile)
+    except:
+        pass
+    try:
+        fd, path = tempfile.mkstemp(
+            prefix=os.path.dirname(outfile) + '/.' + prog)
+        handle = os.fdopen(fd, 'w')
+    except Exception as e:
+        efatal("failure creating file", e)
+    try:
+        handle.write(token + '\n')
+    except Exception as e:
+        efatal("failure writing file", e)
+    handle.close()
+    try:
+        os.rename(path, outfile)
+    except Exception as e:
+        try:
+            os.remove(outfile)
+        except:
+            pass
+        efatal("failure renaming " + path + " to " + outfile, e)
     
 
 ### htgettoken main ####
@@ -434,11 +481,6 @@ def main():
                     if options.verbose:
                         print("Attempting to get bearer token from " + vaultserver)
                         print("  using vault token from " + vaulttokenfile)
-                    elif showprogress:
-                        sys.stdout.write('Attempting to get token from ' + vaultserver +
-                                         ' ...')
-                        sys.stdout.flush()
-
 
                     bearertoken = getBearerToken(opener, vaultserver,
                                                 vaulttoken, vaultpath)
@@ -449,19 +491,22 @@ def main():
                 service = "host@" + vaultserverparts[2].split(':')[0]
                 if options.verbose:
                     print('Initializing kerberos client for', service)
-                __, vc = kerberos.authGSSClientInit(service=service, mech_oid=kerberos.GSS_MECH_OID_SPNEGO)
-                kerberos.authGSSClientStep(vc, "")
-                kerberos_token = kerberos.authGSSClientResponse(vc)
+                __, kcontext = kerberos.authGSSClientInit(service=service,
+                                        mech_oid=kerberos.GSS_MECH_OID_SPNEGO)
+                kerberos.authGSSClientStep(kcontext, "")
+                kerberostoken = kerberos.authGSSClientResponse(kcontext)
                 if options.debug:
-                    print('Kerberos token:', kerberos_token)
+                    print('Kerberos token:', kerberostoken)
 
                 url = str(vaultserver) + "/v1/auth/kerberos/login"
                 if options.verbose:
                     print('Negotiating kerberos with vault', url)
-                request = urllib_request.Request(url=url,
-                                  headers={'Authorization': 'Negotiate ' + kerberos_token},
-                                  data=''.encode('ascii')  # empty data is to force a POST
-                                  )
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Negotiate ' + kerberostoken
+                }
+                data = ''.encode('ascii')  # empty data is to force a POST
+                request = urllib_request.Request(url=url, headers=headers, data=data)
                 try:
                     handle = opener.open(request)
                 except Exception as e:
@@ -475,17 +520,25 @@ def main():
                 response = json.loads(body)
                 if 'auth' in response and response['auth'] is not None:
                     vaulttoken=response['auth']['client_token']
-                    print('Vault token:', vaulttoken)
-                    with open(os.path.expanduser("~/.vault-token"), "w") as file:
-                        file.write(vaulttoken)
-                else:
-                    print('Authentication failed')
-                    if 'warnings' in response:
-                        for warning in response['warnings']:
-                            print('  ' + warning)
-                    if 'errors' in response:
-                        for error in response['errors']:
-                            print('  ' + error)
+                    if options.verbose:
+                        print('Storing vault token in ' + vaulttokenfile)
+                    writeTokenSafely(vaulttoken, vaulttokenfile)
+
+                    if options.verbose:
+                        print("Attempting to get bearer token from " + vaultserver)
+
+                    bearertoken = getBearerToken(opener, vaultserver,
+                                                vaulttoken, vaultpath)
+
+                elif options.verbose:
+                    print('Kerberos authentication failed')
+                    if options.debug:
+                        if 'warnings' in response:
+                            for warning in response['warnings']:
+                                print('  ' + warning)
+                        if 'errors' in response:
+                            for error in response['errors']:
+                                print('  ' + error)
                     exit(1)
 
 
@@ -496,32 +549,7 @@ def main():
     # Write bearer token to outfile
     if options.verbose or showprogress:
         print('Storing token in ' + outfile)
-    # Attempt to remove the file first in case it exists, because os.O_EXCL
-    #  requires it to be gone.  Need to use os.O_EXCL to prevent somebody
-    #  else from pre-creating the file in order to steal credentials.
-    try:
-        os.remove(outfile)
-    except:
-        pass
-    try:
-        fd, path = tempfile.mkstemp(
-            prefix=os.path.dirname(outfile) + '/.' + prog)
-        handle = os.fdopen(fd, 'wb')
-    except Exception as e:
-        efatal("failure creating file", e)
-    try:
-        handle.write(bearertoken + '\n')
-    except Exception as e:
-        efatal("failure writing file", e)
-    handle.close()
-    try:
-        os.rename(path, outfile)
-    except Exception as e:
-        try:
-            os.remove(outfile)
-        except:
-            pass
-        efatal("failure renaming " + path + " to " + outfile, e)
+    writeTokenSafely(bearertoken, outfile)
 
 
 if __name__ == '__main__':
