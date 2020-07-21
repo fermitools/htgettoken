@@ -74,3 +74,5 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jul 21 2020 Dave Dykstra <dwd@fnal.gov> 0.1-1
+- Initial release
