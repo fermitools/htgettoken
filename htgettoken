@@ -27,7 +27,7 @@ import jwt
 import re
 import shlex
 import tempfile
-import webbrowser
+import subprocess
 from optparse import OptionParser
 
 try:
@@ -629,7 +629,14 @@ def main():
             del data['user_code']
         print()
          
-        webbrowser.open_new_tab(auth_url)
+        # Don't use python's webbrowser library; it tries too many things
+        opencmd = 'xdg-open'
+        if sys.platform == 'darwin':
+            opencmd = 'open'
+        cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
+        if cp.returncode != 0:
+            print("Couldn't open browser with '%s', please open URL manually" % opencmd)
+            print()
 
         url = vaultserver + '/v1/' + authpath + '/device_wait'
         data['role'] = options.vaultrole
