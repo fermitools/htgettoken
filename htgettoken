@@ -46,7 +46,7 @@ from M2Crypto import SSL, X509, EVP, RSA, ASN1, m2
 from OpenSSL import crypto
 
 prog = "htgettoken"
-version = "0.1"
+version = "0.2"
 
 # get the default certificates paths for this platform
 _default_cafile = '/etc/ssl/certs/ca-certificates.crt'  # debian
@@ -424,7 +424,7 @@ def main():
         try:
             with open(outfile, 'r') as file:
                 jwtstr = file.read().strip()
-            jwtopts = {'verify_signature': False}
+            jwtopts = {'verify_signature': False, 'verify_aud': False}
             jwtdict = jwt.decode(jwtstr, options=jwtopts)
         except Exception as e:
             if options.debug:
@@ -478,7 +478,7 @@ def main():
         try:
             with open(configfile, 'r') as file:
                 credkey = file.read().strip()
-        except:
+        except Exception as e:
             if options.debug:
                 print("Could not read " + configfile + ": " +
                       type(e).__name__ + ": " + str(e), e)
@@ -631,10 +631,14 @@ def main():
          
         # Don't use python's webbrowser library; it tries too many things
         opencmd = 'xdg-open'
+        cp = None
         if sys.platform == 'darwin':
             opencmd = 'open'
-        cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
-        if cp.returncode != 0:
+        try:
+            cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
+        except:
+            pass
+        if cp is None or cp.returncode != 0:
             print("Couldn't open browser with '%s', please open URL manually" % opencmd)
             print()
 
@@ -688,9 +692,13 @@ def main():
         elif showprogress:
             print("Saving credkey to %s" % configfile)
         try:
+            os.makedirs(os.path.expanduser(options.configdir), exist_ok=True)
+        except Exception as e:
+            efatal('error creating %s' % configdir, e)
+        try:
             with open(configfile, 'w') as file:
                 file.write(credkey + '\n')
-        except:
+        except Exception as e:
             efatal('error writing %s' % configfile, e)
 
         if 'oauth2_refresh_token' not in metadata:
