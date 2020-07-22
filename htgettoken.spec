@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 0.1
+Version: 0.2
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -74,5 +74,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Jul 22 2020 Dave Dykstra <dwd@fnal.gov> 0.2-1
+- Allow for missing xdg-open
+- Add some missing "Exception as e" clauses
+- Create configdir if missing when needed
+- Change from jwt pip package to pyjwt, and disable verify_aud
+
 * Tue Jul 21 2020 Dave Dykstra <dwd@fnal.gov> 0.1-1
 - Initial release
