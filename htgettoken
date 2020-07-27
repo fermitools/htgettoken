@@ -49,17 +49,17 @@ prog = "htgettoken"
 version = "0.2"
 
 # get the default certificates paths for this platform
-_default_cafile = '/etc/ssl/certs/ca-certificates.crt'  # debian
-_default_capath = "/etc/grid-security/certificates"
 _paths = ssl.get_default_verify_paths()
-# always prefer python's default cafile
-if _paths.cafile:
-    _default_cafile = _paths.cafile
+_default_cafile = _paths.cafile or ''
+if _default_cafile == '':
+    # workaround debian bug
+    _try_cafile = '/etc/ssl/certs/ca-certificates.crt'
+    if os.path.isfile(_try_cafile):
+        _default_cafile = _try_cafile
 # prefer grid-security default capath
+_default_capath = "/etc/grid-security/certificates"
 if _paths.capath and not os.path.isdir(_default_capath):
     _default_capath = _paths.capath
-if not os.path.isfile(_default_cafile or ''):  # use ca-certificates file:
-    _default_cafile = "/etc/pki/tls/cert.pem"
 
 defaults = {
     "cafile": _default_cafile,
