@@ -38,7 +38,26 @@ PYDIR=$PWD/.local
 
 cd ../%{name}-%{version}
 
-PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`" $PYDIR/bin/pyinstaller --noconfirm --noconsole --clean --log-level=WARN %{name}
+export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
+PYIOPTS="--noconsole --log-level=WARN"
+$PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
+# This code was based on code found from
+#  https://github.com/pyinstaller/pyinstaller/issues/2732#issuecomment-626325960
+cat >dist/editlibs.spec <<!EOF!
+def _should_include_binary(binary_tuple):
+    path = binary_tuple[0]
+    if not path.startswith('lib') or path.startswith('lib/'):
+        return True
+    if path.startswith('libpython') or path.startswith('libffi'):
+        return True
+    return False
+a.binaries = list(filter(_should_include_binary, a.binaries))
+!EOF!
+awk '
+    {if ($1 == "pyz") system("cat dist/editlibs.spec")}
+    {print}
+' dist/%{name}.spec >dist/%{name}-lesslibs.spec
+$PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
 # "from M2Crypto import _m2crypto" gets confused without this:
 mkdir -p dist/%{name}/M2Crypto
 cd dist/%{name}/M2Crypto
@@ -74,6 +93,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+#- Avoid including standard system libraries with pyinstaller
+
 * Wed Jul 22 2020 Dave Dykstra <dwd@fnal.gov> 0.2-1
 - Allow for missing xdg-open
 - Add some missing "Exception as e" clauses
