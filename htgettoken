@@ -28,6 +28,7 @@ import re
 import shlex
 import tempfile
 import subprocess
+import signal
 from optparse import OptionParser
 
 try:
@@ -355,6 +356,10 @@ def main():
                       '[default: $X509_CERT_DIR or ' +
                       defaults['capath'] + ']')
 
+    # Change the default handler for SIGINT from raising a KeyboardInterrupt
+    #  (which is ignored by urllib) to SIG_DFL (which exits)
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     # add default value (if any) to the help messages that are strings
     for option in parser.option_list:
         if (option.default != ("NO", "DEFAULT")) and (option.action == "store"):
@@ -654,7 +659,7 @@ def main():
         handle = None
         try:
             # increase the timeout for this potentially long response
-            savetimeout = CertValidatingHTTPSConnection.set_timeout(60)
+            savetimeout = CertValidatingHTTPSConnection.set_timeout(300)
             handle = opener.open(request)
             CertValidatingHTTPSConnection.set_timeout(savetimeout)
         except Exception as e:
