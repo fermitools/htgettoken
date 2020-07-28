@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 0.2
+Version: 0.3
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -13,6 +13,10 @@ Source0: %{name}-%{version}.tar.gz
 Source1: %{name}-downloads.tar.gz
 BuildRequires: python3-pip
 BuildRequires: python3-devel
+# swig and openssl-devel are needed to prevent an M2Crypto problem with
+#   OpenSSL 1.1
+BuildRequires: swig
+BuildRequires: openssl-devel
 
 %description
 htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
@@ -93,7 +97,13 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-#- Avoid including standard system libraries with pyinstaller
+* Tue Jul 28 2020 Dave Dykstra <dwd@fnal.gov> 0.3-1
+- Avoid including standard system libraries with pyinstaller
+- Increase timeout on web browser interaction to 5 minutes
+- Set up the interrupt signal to kill the program
+- Add BuildRequires for openssl-devel and swig
+- Remove confusing code for setting default cafile on RHEL and make setting
+   the Debian default more clear
 
 * Wed Jul 22 2020 Dave Dykstra <dwd@fnal.gov> 0.2-1
 - Allow for missing xdg-open
