@@ -354,7 +354,7 @@ def main():
                       help="path in vault for accessing oidc authentication")
     parser.add_option("--secretpath",
                       metavar="vaultpath",
-                      default="secret/oauth-%issuer/creds/%credkey-%role",
+                      default="secret/oauth-%issuer/creds/%credkey:%role",
                       help="path in vault for accessing bearer token secret")
     parser.add_option("-c", "--configdir",
                       metavar="path",
