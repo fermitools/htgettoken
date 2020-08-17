@@ -29,17 +29,21 @@ import shlex
 import tempfile
 import subprocess
 import signal
+import time
+import secrets
 from optparse import OptionParser
 
 try:
     from http import client as http_client
     from urllib import request as urllib_request
     from urllib import parse as urllib_parse
+    from urllib.error import HTTPError
     # the following is just a hint for pyinstaller
     from http import cookies as http_cookies
 except ImportError: # python < 3
     import httplib as http_client
     import urllib2 as urllib_request
+    from urllib2 import HTTPError
     import urlparse as urllib_parse
 
 import kerberos
@@ -182,7 +186,24 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         sslconn.connect((self.host, self.port))
         self.sock = _SslSocketWrapper(sslconn)
 
+# One API call requires reading the body of a 400 error, so to enable
+#  that call VerifiedHTTPSHandler.set_ignore_400() and to disable it
+#  call VerifiedHTTPSHandler.clear_ignore_400()
 class VerifiedHTTPSHandler(urllib_request.HTTPSHandler):
+    ignore_400 = False
+
+    @classmethod
+    def set_ignore_400(cls):
+        cls.ignore_400 = True
+
+    @classmethod
+    def clear_ignore_400(cls):
+        cls.ignore_400 = False
+
+    @classmethod
+    def is_400_ignored(cls):
+        return cls.ignore_400
+
     def __init__(self, **kwargs):
         urllib_request.HTTPSHandler.__init__(self)
         self._connection_args = kwargs
@@ -196,9 +217,12 @@ class VerifiedHTTPSHandler(urllib_request.HTTPSHandler):
 
         return self.do_open(http_class_wrapper, req)
 
-    # also don't raise an exception for 401 Not authorized errors
-    def http_error_401(self, request, response, code, msg, hdrs):
-        return response
+    def http_error_400(self, request, fp, code, msg, hdrs):
+        if self.is_400_ignored():
+            if options.debug:
+                print("ignoring 400 " + msg)
+            return fp
+        raise HTTPError(request.get_full_url(), code, msg, hdrs, fp)
 
 
 # function from http://stackoverflow.com/questions/4407539/python-how-to-make-an-option-to-be-required-in-optparse
@@ -590,13 +614,18 @@ def main():
                     elif showprogress:
                         print(" failed")
 
-
     if bearertoken is None:
         if options.verbose or showprogress:
             print("Attempting OIDC authentication with", vaultserver)
         authpath = options.authpath.replace("%issuer", options.issuer)
         url = vaultserver + '/v1/' + authpath + '/auth_url'
-        data = json.dumps({'role': options.vaultrole})
+        nonce = secrets.token_urlsafe()
+        authdata = {
+            'role': options.vaultrole,
+            'client_nonce': nonce,
+            'redirect_uri': vaultserver + '/v1/' + authpath + '/callback'
+        }
+        data = json.dumps(authdata)
         if options.debug:
             print("Authenticating to", url)
             print("##### Begin authentication data")
@@ -647,32 +676,77 @@ def main():
             print("Couldn't open browser with '%s', please open URL manually" % opencmd)
             print()
 
-        url = vaultserver + '/v1/' + authpath + '/device_wait'
-        data['role'] = options.vaultrole
-        data = json.dumps(data)
+        pollinterval = 0
+        data['client_nonce'] = nonce
+        datastr = ''
+        if 'state' in data:
+            url = vaultserver + '/v1/' + authpath + '/poll'
+            if 'poll_interval' in data:
+                pollinterval = int(data['poll_interval'])
+                del data['poll_interval']
+            # need to set method because empty data causes a POST
+            url = url + '?' + urllib_parse.urlencode(data)
+            method = 'GET'
+        else:
+            # backward compatibility for old device flow implementation
+            url = vaultserver + '/v1/' + authpath + '/device_wait'
+            data['role'] = options.vaultrole
+            method = 'POST'
+            datastr = json.dumps(data)
         if options.debug:
             print("Continuing authentication at", url)
-            print("##### Begin continuation data")
-            print(data)
-            print("##### End continuation data")
-        request = urllib_request.Request(url=url, data=data.encode())
-        handle = None
-        try:
-            # increase the timeout for this potentially long response
-            savetimeout = CertValidatingHTTPSConnection.set_timeout(300)
-            handle = opener.open(request)
-            CertValidatingHTTPSConnection.set_timeout(savetimeout)
-        except Exception as e:
-            efatal("Authentication to %s failed" % vaultserver, e)
-        body = handle.read()
-        if options.debug:
-            print("##### Begin vault auth response")
-            print(body)
-            print("##### End vault auth response")
-        try:
-            response = json.loads(body)
-        except Exception as e:
-            efatal("decoding response from %s failed" % vaultserver, e)
+            if datastr != '':
+                print("##### Begin continuation data")
+                print(datastr)
+                print("##### End continuation data")
+
+        response = None
+        while True:
+            request = urllib_request.Request(method=method, url=url, data=datastr.encode())
+            handle = None
+            try:
+                if pollinterval == 0:
+                    # backward compatibility for old device flow implementation
+                    # increase the timeout for this potentially long response
+                    savetimeout = CertValidatingHTTPSConnection.set_timeout(300)
+                    handle = opener.open(request)
+                    CertValidatingHTTPSConnection.set_timeout(savetimeout)
+                else:
+                    if options.debug:
+                        print("waiting for " + str(pollinterval) + " seconds")
+                    time.sleep(pollinterval)
+                    if options.debug:
+                        print("polling")
+                    # The normal "authorized_pending" response comes in
+                    #  the body of a 400 Bad Request.  If we let the
+                    #  exception go as normal, the handle gets closed and
+                    #  we can't read the body, so temporarily block 400 from
+                    #  throwing an exception.
+                    VerifiedHTTPSHandler.set_ignore_400()
+                    handle = opener.open(request)
+                    VerifiedHTTPSHandler.clear_ignore_400()
+            except Exception as e:
+                efatal("Authentication to %s failed" % vaultserver, e)
+            body = handle.read()
+            if options.debug:
+                print("##### Begin vault auth response")
+                print(body)
+                print("##### End vault auth response")
+            try:
+                response = json.loads(body)
+            except Exception as e:
+                efatal("decoding response from %s failed" % vaultserver, e)
+            if 'errors' in response:
+                errors = response['errors']
+                if errors[0] == "slow_down":
+                    pollinterval = pollinterval * 2
+                elif errors[0] != "authorization_pending":
+                    fatal("error in response from %s: %s" % (vaultserver, errors[0]))
+                if options.debug:
+                    print("authorization pending, trying again")
+            else:
+                # good reply
+                break
 
         if 'auth' not in response:
             fatal("no 'auth' in response from %s" % vaultserver)
