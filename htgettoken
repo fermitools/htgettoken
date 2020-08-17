@@ -738,7 +738,9 @@ def main():
                 efatal("decoding response from %s failed" % vaultserver, e)
             if 'errors' in response:
                 errors = response['errors']
-                if errors[0] != "authorization_pending":
+                if errors[0] == "slow_down":
+                    pollinterval = pollinterval * 2
+                elif errors[0] != "authorization_pending":
                     fatal("error in response from %s: %s" % (vaultserver, errors[0]))
                 if options.debug:
                     print("authorization pending, trying again")
