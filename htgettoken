@@ -6,7 +6,6 @@
 #  m2crypto
 #  pyOpenSSL
 #  kerberos
-#  jwt
 #
 # This source file is Copyright (c) 2020, FERMI NATIONAL
 #   ACCELERATOR LABORATORY.  All rights reserved.
@@ -23,7 +22,6 @@ import socket
 import ssl
 import string
 import json
-import jwt
 import re
 import shlex
 import tempfile
@@ -257,6 +255,7 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
                          ' ...')
         sys.stdout.flush()
     url = vaultserver + '/v1/' + vaultpath
+    url = url + '?' + urllib_parse.urlencode({'minimum_seconds': options.minsecs})
     if options.debug:
         print("Reading from", url)
     headers = {'X-Vault-Token': vaulttoken}
@@ -446,35 +445,7 @@ def main():
             if tmpdir is None:
                 tmpdir = '/tmp'
             options.outfile = tmpdir + "/bt_u%uid"
-
-    # Check to see if an adequate bearer token already exists
     outfile = options.outfile.replace("%uid", str(os.geteuid()))
-    if os.path.exists(outfile):
-        try:
-            with open(outfile, 'r') as file:
-                jwtstr = file.read().strip()
-            jwtopts = {'verify_signature': False, 'verify_aud': False}
-            jwtdict = jwt.decode(jwtstr, options=jwtopts)
-        except Exception as e:
-            if options.debug:
-                print("Could not load " + outfile + ": " +
-                      type(e).__name__ + ": " + str(e), e)
-        else:
-            if options.verbose:
-                print("Checking if %s has at least %s seconds left" %
-                      (outfile, options.minsecs))
-            elif showprogress:
-                sys.stdout.write('Checking if ' + outfile +
-                                 ' can be reused ...')
-                sys.stdout.flush()
-
-            # check remaining seconds here
-
-            if showprogress:
-                print(" no")
-    else:
-        if options.debug:
-            print("No existing bearer token in " + outfile)
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
