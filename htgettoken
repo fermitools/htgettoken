@@ -655,15 +655,11 @@ def main():
             if 'poll_interval' in data:
                 pollinterval = int(data['poll_interval'])
                 del data['poll_interval']
-            # need to set method because empty data causes a POST
-            url = url + '?' + urllib_parse.urlencode(data)
-            method = 'GET'
         else:
             # backward compatibility for old device flow implementation
             url = vaultserver + '/v1/' + authpath + '/device_wait'
             data['role'] = options.vaultrole
-            method = 'POST'
-            datastr = json.dumps(data)
+        datastr = json.dumps(data)
         if options.debug:
             print("Continuing authentication at", url)
             if datastr != '':
@@ -673,7 +669,7 @@ def main():
 
         response = None
         while True:
-            request = urllib_request.Request(method=method, url=url, data=datastr.encode())
+            request = urllib_request.Request(url=url, data=datastr.encode())
             handle = None
             try:
                 if pollinterval == 0:
