@@ -255,7 +255,12 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
                          ' ...')
         sys.stdout.flush()
     url = vaultserver + '/v1/' + vaultpath
-    url = url + '?' + urllib_parse.urlencode({'minimum_seconds': options.minsecs})
+    params = {'minimum_seconds': options.minsecs}
+    if options.scopes is not None:
+        params['scopes'] = options.scopes
+    if options.audience is not None:
+        params['audience'] = options.audience
+    url = url + '?' + urllib_parse.urlencode(params)
     if options.debug:
         print("Reading from", url)
     headers = {'X-Vault-Token': vaulttoken}
@@ -370,6 +375,12 @@ def main():
     parser.add_option("--minsecs",
                       type="int", metavar="seconds", default=60,
                       help="minimum number of seconds in bearer token to reuse")
+    parser.add_option("--scopes",
+                      metavar="scopes",
+                      help="comma-separated list of reduced scopes for token")
+    parser.add_option("--audience",
+                      metavar="audience",
+                      help="restricted audience for token")
     parser.add_option("--cafile",
                       metavar="file", default=defaults['cafile'],
                       help="Certifying Authority certificates bundle file")
