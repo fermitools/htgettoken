@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 0.3
+Version: 0.4
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -97,6 +97,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Oct 16 2020 Dave Dykstra <dwd@fnal.gov> 0.4-1
+- Support the new poll api in addition to the old device_wait api when
+  waiting for authorization response
+- Use colon as separator in default secret path instead of hyphen
+- Add --scopes and --audience options
+- Implement the --minsecs option (was present before but didn't work)
+- Stop reading old bearer token and remove use of jwt package
+
 * Tue Jul 28 2020 Dave Dykstra <dwd@fnal.gov> 0.3-1
 - Avoid including standard system libraries with pyinstaller
 - Increase timeout on web browser interaction to 5 minutes

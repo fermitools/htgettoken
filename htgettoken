@@ -16,6 +16,9 @@
 
 from __future__ import print_function
 
+prog = "htgettoken"
+version = "0.4"
+
 import os
 import sys
 import socket
@@ -47,9 +50,6 @@ except ImportError: # python < 3
 import kerberos
 from M2Crypto import SSL, X509, EVP, RSA, ASN1, m2
 from OpenSSL import crypto
-
-prog = "htgettoken"
-version = "0.3"
 
 # get the default certificates paths for this platform
 _paths = ssl.get_default_verify_paths()
