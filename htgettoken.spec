@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 0.4
+Version: 0.5
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -97,6 +97,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Nov 2 2020 Dave Dykstra <dwd@fnal.gov> 0.5-1
+- Set BROWSER variable to prevent xdg-open from running lynx, which hangs.
+
 * Fri Oct 16 2020 Dave Dykstra <dwd@fnal.gov> 0.4-1
 - Support the new poll api in addition to the old device_wait api when
   waiting for authorization response
