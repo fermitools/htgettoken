@@ -646,11 +646,25 @@ def main():
         print()
          
         # Don't use python's webbrowser library; it tries too many things
+        browser = os.getenv("BROWSER")
+        if browser is None:
+            # Avoid the default command-line browsers in xdg-open,
+            #   especially lynx which hangs
+            if os.getenv("DISPLAY") is None:
+                browser = "no-browser"
+            else:
+                # list of common gui browsers copied from el7 xdg-open
+                browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
+            if options.debug:
+                print("Setting BROWSER=" + browser)
+            os.putenv("BROWSER", browser)
         opencmd = 'xdg-open'
         cp = None
         if sys.platform == 'darwin':
             opencmd = 'open'
         try:
+            if options.debug:
+                print("Running", opencmd, auth_url)
             cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
         except:
             pass
