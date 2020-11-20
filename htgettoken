@@ -346,6 +346,9 @@ def main():
     parser.add_option("-a", "--vaultserver",
                       metavar="HostOrURL",
                       help="vault server or URL (required)")
+    parser.add_option("--vaultalias",
+                      metavar="HostOrURL",
+                      help="vault alias service name or URL [default same as vaultserver]")
     parser.add_option("-r", "--vaultrole",
                       metavar="rolename",
                       default="default",
@@ -471,6 +474,20 @@ def main():
     if ':' not in vaultserverparts[2]:
         vaultserver = vaultserver + ':8200'
 
+    vaultalias = vaultserver
+    vaultaliasparts = vaultserverparts
+    if options.vaultalias is not None:
+        # Similarly parse the vaultalias option
+        # This is used when there are multiple servers implementing the
+        #   same vault service, and the vaultserver option selects a
+        #   specific one.
+        vaultalias = options.vaultalias
+        if '://' not in vaultalias:
+            vaultalias = 'https://' + vaultalias
+        vaultaliasparts = vaultalias.split('/')
+        if ':' not in vaultaliasparts[2]:
+            vaultalias = vaultalias + ':8200'
+
     # TODO: for optimization, first check to see if a valid token with
     #  same role & scopes already exists and has enough remaining time on it
 
@@ -532,7 +549,7 @@ def main():
             
         if bearertoken is None:
             # Try kerberos authentication with vault
-            service = "host@" + vaultserverparts[2].split(':')[0]
+            service = "host@" + vaultaliasparts[2].split(':')[0]
             if options.verbose:
                 print("Initializing kerberos client for", service)
             elif showprogress:
@@ -613,7 +630,7 @@ def main():
         authdata = {
             'role': options.vaultrole,
             'client_nonce': nonce,
-            'redirect_uri': vaultserver + '/v1/' + authpath + '/callback'
+            'redirect_uri': vaultalias + '/v1/' + authpath + '/callback'
         }
         data = json.dumps(authdata)
         if options.debug:
@@ -644,6 +661,8 @@ def main():
             fatal("no 'auth_url' in data from %s" % vaultserver)
         auth_url = data['auth_url']
         del data['auth_url'] 
+        if auth_url is "":
+            fatal("'auth_url' is empty in data from %s" % vaultserver)
 
         print()
         print("Complete the authentication via web browser at:")
