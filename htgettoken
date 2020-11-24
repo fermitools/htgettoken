@@ -349,14 +349,14 @@ def main():
     parser.add_option("--vaultalias",
                       metavar="HostOrURL",
                       help="vault alias service name or URL [default same as vaultserver]")
-    parser.add_option("-r", "--vaultrole",
-                      metavar="rolename",
-                      default="default",
-                      help="name of vault role for oidc")
     parser.add_option("-i", "--issuer",
                       metavar="issuername",
                       default="default",
-                      help="name of oidc token issuer")
+                      help="vault name of oidc token issuer")
+    parser.add_option("-r", "--role",
+                      metavar="rolename",
+                      default="default",
+                      help="vault name of role for oidc")
     parser.add_option("--authpath",
                       metavar="vaultpath",
                       default="auth/oidc-%issuer/oidc",
@@ -492,7 +492,7 @@ def main():
     #  same role & scopes already exists and has enough remaining time on it
 
     secretpath = options.secretpath.replace("%issuer", options.issuer)
-    secretpath = secretpath.replace("%role", options.vaultrole)
+    secretpath = secretpath.replace("%role", options.role)
     vaulttokenfile = options.vaulttokenfile.replace("%uid", str(os.geteuid()))
     vaulttokenfile = os.path.expanduser(vaulttokenfile)
     vaulttoken = None
@@ -502,7 +502,7 @@ def main():
     configfile = None
     if credkey is None:
         # Look for saved credkey, needed for figuring out the vault secretpath
-        configfile = options.configdir + '/credkey-' + options.issuer + '-' + options.vaultrole
+        configfile = options.configdir + '/credkey-' + options.issuer + '-' + options.role
         configfile = os.path.expanduser(configfile)
         if not os.path.exists(configfile):
             if options.debug:
@@ -628,7 +628,7 @@ def main():
         url = vaultserver + '/v1/' + authpath + '/auth_url'
         nonce = secrets.token_urlsafe()
         authdata = {
-            'role': options.vaultrole,
+            'role': options.role,
             'client_nonce': nonce,
             'redirect_uri': vaultalias + '/v1/' + authpath + '/callback'
         }
@@ -710,7 +710,7 @@ def main():
         else:
             # backward compatibility for old device flow implementation
             url = vaultserver + '/v1/' + authpath + '/device_wait'
-            data['role'] = options.vaultrole
+            data['role'] = options.role
         datastr = json.dumps(data)
         if options.debug:
             print("Continuing authentication at", url)
