@@ -8,4 +8,297 @@ htgettoken \- get OIDC bearer tokens by interacting with Hashicorp vault
 
 .SH DESCRIPTION
 .B htgettoken
-man page is to be written
+gets OIDC bearer tokens by interacting with a Hashicorp vault server
+configured for retrieving and storing OIDC refresh tokens.  By default
+it attempts to authenticate first using kerberos, and if that doesn't
+enable reading a bearer token then it uses OIDC authentication,
+including directing users to their web browsers to complete the
+authentication.  If that authentication is successful,
+.B htgettoken
+accepts the refresh token (which is only usable with the client secret
+known only to vault) and stores it back into an oauth secrets path in
+vault.  It then reads back from the same secrets path to retrieve a
+bearer access token and stores that in a file.  A vault token is also
+stored in a file so authentication doesn't have to be redone every time.
+Typically, vault tokens are configured on the vault server to last about
+a week but bearer tokens expire much sooner, on the order of an hour.
+
+OIDC authentication URLs are attempted to be launched directly with the
+.B xdg-open
+command, but if that is not successful the user is asked to manually
+copy and paste the URL into a web browser.
+
+.SH OPTIONS
+.PP
+.TP
+.B \-\-version
+Show the program's version number and exit.
+.TP
+.BR \-h , \ \-\-help
+Show a help message and exit.
+.TP
+.BR \-v , \ \-\-verbose
+Write detailed progress reports to stdout instead of the default
+concise reports.
+.TP
+.BR \-d , \ \-\-debug
+Write debug output to stdout.  Implies
+.IR \-v .
+Be aware that this writes a lot of output.
+.TP
+.BR \-q , \ \-\-quiet
+Do not print anything, not the concise progress reports and not even
+error messages.
+.TP
+.BR \-s\ HostOrURL , \ \-\-optserver=HostOrURL
+The server host name or URL with default htgettoken options.  If it is
+just a host name, the URL read is
+.RS
+.RS
+https://hostname/htgettokenopts.txt
+.RE
+otherwise the whole URL is read.
+See also HTGETTOKENOPTS in the ENVIRONMENT section below.
+.RE
+.TP
+.BR \-a\ HostOrURL , \ \-\-vaultserver=HostOrURL
+The vault server name or URL.  If it is just a host name, the URL 
+read is
+.RS
+.RS
+https://hostname:8200
+.RE
+otherwise the whole URL is used.  This is the only required option.
+.RE
+.TP
+.BR \-\-vaultalias=HostOrURL
+The vault server DNS alias name.  This is mainly useful for debugging,
+for example when multiple vault servers in a cluster are serving the
+same alias name and the address of a single server is supplied with
+.IR \-\-vaultserver .
+The
+.I \-\-vaultalias
+is then used to verify that the service name of the vault server this
+expected name.  Default is the same as
+.IR \-\-vaultserver ,
+and the same URL protocol and port are added if they are not supplied.
+.TP
+.BR \-i\ issuername , \ \-\-issuer=issuername
+The name of the OIDC token issuer, as configured in the vault server. 
+The default issuer name is "default".
+.TP
+.BR \-r\ rolename , \ \-\-role=rolename
+The name of the issuer role, as configured in the vault server.  The
+default role name is "default".  Different roles for the same issuer
+map to different token scopes as configured in vault.
+.TP
+.BR \ \-\-nokerberos
+Do not attempt to use kerberos authentication.
+.TP
+.BR \-\-kerbpath=vaultpath
+The path in vault for kerberos authentication.  The default is
+.RS
+.RS
+auth/kerberos/login
+.RE
+.RE
+.TP
+.BR \-\-authpath=vaultpath
+The path in vault for doing OIDC authentication.  The default is
+.RS
+.RS
+auth/oidc-%issuer/oidc
+.RE
+where %issuer is the value from the
+.I \-\-issuer
+option.
+.RE
+.TP
+.BR \-c\ path , \ \-\-configdir=path
+The path to a directory to save
+.B htgettoken
+configuration information.
+.TP
+.BR \-\-credkey=key
+The key to use in the vault secretpath (see next option) when accessing
+the bearer token.  Normally this is read from OIDC authentication and
+automatically stored in a file to be used by later invocations of
+.BR htgettoken .
+The name of the file that the key is stored in when 
+.I \-\-credkey
+is
+.B not
+specified on the command line is
+.RS
+.RS
+%configdir/credkey-%issuer-%role
+.RE
+where each of the % variables are replaced by the values of the
+corresponding options.
+.RE
+.TP
+.BR \-\-secretpath=vaultpath
+The path in vault for accessing the bearer token.  The default is
+.RS
+.RS
+secret/oauth-%issuer/creds/%credkey:%role
+.RE
+where each of the % variables are replaced by the values of the
+corresponding options.
+.RE
+.TP
+.BR \-\-vaulttokenfile=path
+The path to save vault tokens.  The default is
+.RS
+.RS
+/tmp/vt_u%uid
+.RE
+where %uid is the current effective user id.
+.RE
+.TP
+.BR \-o\ path , \ \-\-out=path
+The path of the file used to store the bearer token on the local
+machine.  The default is $BEARER_TOKEN_FILE.  If that is not set
+but $XDG_RUNTIME_DIR is set, then the default is
+.RS
+.RS
+$XDG_RUNTIME_DIR/bt_u%uid
+.RE
+where %uid is the current effective user id.
+.br
+If $XDG_RUNTIME_DIR is also not set, then the default is
+.RS
+/tmp/bt_u%uid
+.RE
+.RE
+.TP
+.B \-\-minsecs=seconds
+The minimum number of seconds before a cached bearer token in vault
+expires in order to reuse it instead of fetching a new one.
+This feature is intended to reduce the load on token issuers while
+leaving enough time for a token to still be usable.
+The default is 60.
+.TP
+.B \-\-scopes=scopes
+A comma-separated list of scopes to request for a bearer token.  This
+should be a subset of the scopes that come by default in the token.  It
+uses token exchange with the token issuer, and the result is not cached
+in vault; instead, vault exchanges the cached token for the new one.
+.TP
+.B \-\-audience=audience
+A more restricted audience for the token.  Like the
+.I \-\-scopes
+option, this uses token exchange with the token issuer.
+.TP
+.B \-\-cafile=file
+The path to a file containing a bundle of Certifying Authority (CA)
+certificates.
+These will be used to verify the validity of https connections.
+The default is
+.RS
+.RS
+/etc/pki/tls/cert.pem
+.RE
+or, if that doesn't exist, the default is
+.RS
+/etc/ssl/certs/ca-certificates.crt
+.RE
+.RE
+.TP
+.B \-\-capath=path
+The path to a directory containing Certifying Authority (CA) certificates.
+These will be used in addition to the 
+.I \-\-cafile
+certificates to verify the validity of https connections.
+The default is $X509_CERT_DIR if it is set, or otherwise the default is
+.RS
+.RS
+/etc/grid-security/certificates
+.RE
+.RE
+
+.SH "ENVIRONMENT"
+The following optional environment variables affect the operation of
+.BR htgettoken .
+.TP
+.B "HTGETTOKENOPTS"
+Default options.  These options override any conflicting options from
+the optserver, but are overridden by any conflicting options from the
+command line.
+.TP
+.B "BEARER_TOKEN_FILE"
+Default location for the bearer token on the local disk.
+For more details see the
+.I \-\-outfile
+option.
+.TP
+.B "XDG_RUNTIME_DIR"
+Default directory for the bearer token if $BEARER_TOKEN_FILE is not set.
+For more details see the
+.I \-\-outfile
+option.
+.TP
+.B "BROWSER"
+Colon-separated list of web browsers that
+.B xdg-open
+will attempt to invoke.  The default is no browser if the DISPLAY
+environment variable is not set; otherwise, the default is a list of
+common web browsers as defined by the xdg-open command.
+.TP
+.B "X509_CERT_DIR"
+Default directory for CA certificates.  See also the
+.I \-\-capath
+option.
+.TP
+.B "KRB5CCNAME"
+Location of a kerberos 5 credentials (ticket) cache.
+
+
+.SH EXAMPLES
+.PP
+To get a new access token for an issuer called "dune" from a vault
+server while showing all intermediate steps:
+.PP
+.RS
+.nf
+htgettoken -v -a htvault.fnal.gov -i dune
+.fi
+.RE
+.PP
+To read default options from a server (which includes an issuer and
+vault server and possibly other options) while choosing the "prod"
+role:
+.PP
+.RS
+.nf
+htgettoken -s htduneopts.fnal.gov -r prod
+.fi
+.RE
+.PP
+To always have a default vault address:
+.PP
+.RS
+.nf
+export HTGETTOKENOPTS="-a htvault.fnal.gov"
+.fi
+.RE
+
+.SH "EXIT VALUES"
+.TP
+.B 0
+Success
+.TP
+.B 1
+All fatal errors other than usage errors
+.TP
+.B 2
+Usage error
+
+.SH AUTHOR
+Dave Dykstra
+
+.SH COPYRIGHT
+Copyright \(co 2016 Fermi National Accelerator Laboratory
+
+.SH "SEE ALSO"
+http://www.cilogon.org/ecp
