@@ -1,0 +1,464 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Tue Dec  1 16:08:40 2020 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>htgettoken</title>
+
+</head>
+<body>
+
+<h1 align="center">htgettoken</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#ENVIRONMENT">ENVIRONMENT</a><br>
+<a href="#EXAMPLES">EXAMPLES</a><br>
+<a href="#EXIT VALUES">EXIT VALUES</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#COPYRIGHT">COPYRIGHT</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">htgettoken
+&minus; get OIDC bearer tokens by interacting with Hashicorp
+vault</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>htgettoken</b>
+[<i>OPTION</i>]...</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>htgettoken</b>
+gets OIDC bearer tokens by interacting with a Hashicorp
+vault server configured for retrieving and storing OIDC
+refresh tokens. By default it attempts to authenticate first
+using kerberos, and if that doesn&rsquo;t enable reading a
+bearer token then it uses OIDC authentication, including
+directing users to their web browsers to complete the
+authentication. If that authentication is successful,
+<b>htgettoken</b> accepts the refresh token (which is only
+usable with the client secret known only to vault) and
+stores it back into an oauth secrets path in vault. It then
+reads back from the same secrets path to retrieve a bearer
+access token and stores that in a file. A vault token is
+also stored in a file so authentication doesn&rsquo;t have
+to be redone every time. Typically, vault tokens are
+configured on the vault server to last about a week but
+bearer tokens expire much sooner, on the order of an
+hour.</p>
+
+<p style="margin-left:11%; margin-top: 1em">OIDC
+authentication URLs are attempted to be launched directly
+with the <b>xdg-open</b> command, but if that is not
+successful the user is asked to manually copy and paste the
+URL into a web browser.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>&minus;&minus;version</b></p>
+
+<p style="margin-left:22%;">Show the program&rsquo;s
+version number and exit.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;h</b>,&nbsp;<b>&minus;&minus;help</b></p>
+
+<p style="margin-left:22%;">Show a help message and
+exit.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;v</b>,&nbsp;<b>&minus;&minus;verbose</b></p>
+
+<p style="margin-left:22%;">Write detailed progress reports
+to stdout instead of the default concise reports.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;d</b>,&nbsp;<b>&minus;&minus;debug</b></p>
+
+<p style="margin-left:22%;">Write debug output to stdout.
+Implies <i>&minus;v</i>. Be aware that this writes a lot of
+output.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;q</b>,&nbsp;<b>&minus;&minus;quiet</b></p>
+
+<p style="margin-left:22%;">Do not print anything, not the
+concise progress reports and not even error messages.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;s&nbsp;HostOrURL</b>,&nbsp;<b>&minus;&minus;optserver=HostOrURL</b></p>
+
+<p style="margin-left:22%;">The server host name or URL
+with default htgettoken options. If it is just a host name,
+the URL read is</p>
+
+
+<p style="margin-left:32%;">https://hostname/htgettokenopts.txt</p>
+
+<p style="margin-left:22%;">otherwise the whole URL is
+read. See also HTGETTOKENOPTS in the ENVIRONMENT section
+below.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;a&nbsp;HostOrURL</b>,&nbsp;<b>&minus;&minus;vaultserver=HostOrURL</b></p>
+
+<p style="margin-left:22%;">The vault server name or URL.
+If it is just a host name, the URL read is</p>
+
+<p style="margin-left:32%;">https://hostname:8200</p>
+
+<p style="margin-left:22%;">otherwise the whole URL is
+used. This is the only required option.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;vaultalias=HostOrURL</b></p>
+
+<p style="margin-left:22%;">The vault server DNS alias
+name. This is mainly useful for debugging, for example when
+multiple vault servers in a cluster are serving the same
+alias name and the address of a single server is supplied
+with <i>&minus;&minus;vaultserver</i>. The
+<i>&minus;&minus;vaultalias</i> is then used to verify that
+the service name of the vault server this expected name.
+Default is the same as <i>&minus;&minus;vaultserver</i>, and
+the same URL protocol and port are added if they are not
+supplied.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;i&nbsp;issuername</b>,&nbsp;<b>&minus;&minus;issuer=issuername</b></p>
+
+<p style="margin-left:22%;">The name of the OIDC token
+issuer, as configured in the vault server. The default
+issuer name is &quot;default&quot;.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;r&nbsp;rolename</b>,&nbsp;<b>&minus;&minus;role=rolename</b></p>
+
+<p style="margin-left:22%;">The name of the issuer role, as
+configured in the vault server. The default role name is
+&quot;default&quot;. Different roles for the same issuer map
+to different token scopes as configured in vault. &nbsp;</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;nokerberos</b></p>
+
+<p style="margin-left:22%;">Do not attempt to use kerberos
+authentication.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;kerbpath=vaultpath</b></p>
+
+<p style="margin-left:22%;">The path in vault for kerberos
+authentication. The default is</p>
+
+<p style="margin-left:32%;">auth/kerberos/login</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;authpath=vaultpath</b></p>
+
+<p style="margin-left:22%;">The path in vault for doing
+OIDC authentication. The default is</p>
+
+<p style="margin-left:32%;">auth/oidc-%issuer/oidc</p>
+
+<p style="margin-left:22%;">where %issuer is the value from
+the <i>&minus;&minus;issuer</i> option.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;c&nbsp;path</b>,&nbsp;<b>&minus;&minus;configdir=path</b></p>
+
+<p style="margin-left:22%;">The path to a directory to save
+<b>htgettoken</b> configuration information.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;credkey=key</b></p>
+
+<p style="margin-left:22%;">The key to use in the vault
+secretpath (see next option) when accessing the bearer
+token. Normally this is read from OIDC authentication and
+automatically stored in a file to be used by later
+invocations of <b>htgettoken</b>. The name of the file that
+the key is stored in when <i>&minus;&minus;credkey</i> is
+<b>not</b> specified on the command line is</p>
+
+
+<p style="margin-left:32%;">%configdir/credkey-%issuer-%role</p>
+
+<p style="margin-left:22%;">where each of the % variables
+are replaced by the values of the corresponding options.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;secretpath=vaultpath</b></p>
+
+<p style="margin-left:22%;">The path in vault for accessing
+the bearer token. The default is</p>
+
+
+<p style="margin-left:32%;">secret/oauth-%issuer/creds/%credkey:%role</p>
+
+<p style="margin-left:22%;">where each of the % variables
+are replaced by the values of the corresponding options.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;vaulttokenfile=path</b></p>
+
+<p style="margin-left:22%;">The path to save vault tokens.
+The default is</p>
+
+<p style="margin-left:32%;">/tmp/vt_u%uid</p>
+
+<p style="margin-left:22%;">where %uid is the current
+effective user id.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;o&nbsp;path</b>,&nbsp;<b>&minus;&minus;out=path</b></p>
+
+<p style="margin-left:22%;">The path of the file used to
+store the bearer token on the local machine. The default is
+$BEARER_TOKEN_FILE. If that is not set but $XDG_RUNTIME_DIR
+is set, then the default is</p>
+
+<p style="margin-left:32%;">$XDG_RUNTIME_DIR/bt_u%uid</p>
+
+<p style="margin-left:22%;">where %uid is the current
+effective user id. <br>
+If $XDG_RUNTIME_DIR is also not set, then the default is</p>
+
+<p style="margin-left:32%;">/tmp/bt_u%uid</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;minsecs=seconds</b></p>
+
+<p style="margin-left:22%;">The minimum number of seconds
+before a cached bearer token in vault expires in order to
+reuse it instead of fetching a new one. This feature is
+intended to reduce the load on token issuers while leaving
+enough time for a token to still be usable. The default is
+60.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;scopes=scopes</b></p>
+
+<p style="margin-left:22%;">A comma-separated list of
+scopes to request for a bearer token. This should be a
+subset of the scopes that come by default in the token. It
+uses token exchange with the token issuer, and the result is
+not cached in vault; instead, vault exchanges the cached
+token for the new one.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;audience=audience</b></p>
+
+<p style="margin-left:22%;">A more restricted audience for
+the token. Like the <i>&minus;&minus;scopes</i> option, this
+uses token exchange with the token issuer.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;cafile=file</b></p>
+
+<p style="margin-left:22%;">The path to a file containing a
+bundle of Certifying Authority (CA) certificates. These will
+be used to verify the validity of https connections. The
+default is</p>
+
+<p style="margin-left:32%;">/etc/pki/tls/cert.pem</p>
+
+<p style="margin-left:22%;">or, if that doesn&rsquo;t
+exist, the default is</p>
+
+
+<p style="margin-left:32%;">/etc/ssl/certs/ca-certificates.crt</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;capath=path</b></p>
+
+<p style="margin-left:22%;">The path to a directory
+containing Certifying Authority (CA) certificates. These
+will be used in addition to the <i>&minus;&minus;cafile</i>
+certificates to verify the validity of https connections.
+The default is $X509_CERT_DIR if it is set, or otherwise the
+default is</p>
+
+
+<p style="margin-left:32%;">/etc/grid-security/certificates</p>
+
+<h2>ENVIRONMENT
+<a name="ENVIRONMENT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The following
+optional environment variables affect the operation of
+<b>htgettoken</b>. <b><br>
+HTGETTOKENOPTS</b></p>
+
+<p style="margin-left:22%;">Default options. These options
+override any conflicting options from the optserver, but are
+overridden by any conflicting options from the command
+line.</p>
+
+<p style="margin-left:11%;"><b>BEARER_TOKEN_FILE</b></p>
+
+<p style="margin-left:22%;">Default location for the bearer
+token on the local disk. For more details see the
+<i>&minus;&minus;outfile</i> option.</p>
+
+<p style="margin-left:11%;"><b>XDG_RUNTIME_DIR</b></p>
+
+<p style="margin-left:22%;">Default directory for the
+bearer token if $BEARER_TOKEN_FILE is not set. For more
+details see the <i>&minus;&minus;outfile</i> option.</p>
+
+<p style="margin-left:11%;"><b>BROWSER</b></p>
+
+<p style="margin-left:22%;">Colon-separated list of web
+browsers that <b>xdg-open</b> will attempt to invoke. The
+default is no browser if the DISPLAY environment variable is
+not set; otherwise, the default is a list of common web
+browsers as defined by the xdg-open command.</p>
+
+<p style="margin-left:11%;"><b>X509_CERT_DIR</b></p>
+
+<p style="margin-left:22%;">Default directory for CA
+certificates. See also the <i>&minus;&minus;capath</i>
+option.</p>
+
+<p style="margin-left:11%;"><b>KRB5CCNAME</b></p>
+
+<p style="margin-left:22%;">Location of a kerberos 5
+credentials (ticket) cache.</p>
+
+<h2>EXAMPLES
+<a name="EXAMPLES"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">To get a new
+access token for an issuer called &quot;dune&quot; from a
+vault server while showing all intermediate steps:</p>
+
+<p style="margin-left:22%; margin-top: 1em">htgettoken -v
+-a htvault.fnal.gov -i dune</p>
+
+<p style="margin-left:11%; margin-top: 1em">To read default
+options from a server (which includes an issuer and vault
+server and possibly other options) while choosing the
+&quot;prod&quot; role:</p>
+
+<p style="margin-left:22%; margin-top: 1em">htgettoken -s
+htduneopts.fnal.gov -r prod</p>
+
+<p style="margin-left:11%; margin-top: 1em">To always have
+a default vault address:</p>
+
+<p style="margin-left:22%; margin-top: 1em">export
+HTGETTOKENOPTS=&quot;-a htvault.fnal.gov&quot;</p>
+
+<h2>EXIT VALUES
+<a name="EXIT VALUES"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="1%">
+
+
+<p style="margin-top: 1em"><b>0</b></p></td>
+<td width="10%"></td>
+<td width="61%">
+
+
+<p style="margin-top: 1em">Success</p></td>
+<td width="17%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="1%">
+
+
+<p><b>1</b></p></td>
+<td width="10%"></td>
+<td width="61%">
+
+
+<p>All fatal errors other than usage errors</p></td>
+<td width="17%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="1%">
+
+
+<p><b>2</b></p></td>
+<td width="10%"></td>
+<td width="61%">
+
+
+<p>Usage error</p></td>
+<td width="17%">
+</td></tr>
+</table>
+
+<h2>AUTHOR
+<a name="AUTHOR"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Dave
+Dykstra</p>
+
+<h2>COPYRIGHT
+<a name="COPYRIGHT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Copyright
+&copy; 2016 Fermi National Accelerator Laboratory</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em">http://www.cilogon.org/ecp</p>
+<hr>
+</body>
+</html>
