@@ -219,7 +219,7 @@ The default is $X509_CERT_DIR if it is set, or otherwise the default is
 
 .SH "ENVIRONMENT"
 The following optional environment variables affect the operation of
-.BR cigetcert .
+.BR htgettoken .
 .TP
 .B "HTGETTOKENOPTS"
 Default options.  These options override any conflicting options from
@@ -238,6 +238,13 @@ For more details see the
 .I \-\-outfile
 option.
 .TP
+.B "BROWSER"
+Colon-separated list of web browsers that
+.B xdg-open
+will attempt to invoke.  The default is no browser if the DISPLAY
+environment variable is not set; otherwise, the default is a list of
+common web browsers as defined by the xdg-open command.
+.TP
 .B "X509_CERT_DIR"
 Default directory for CA certificates.  See also the
 .I \-\-capath
@@ -248,7 +255,26 @@ Location of a kerberos 5 credentials (ticket) cache.
 
 
 .SH EXAMPLES
-
+.PP
+To get a new access token for an issuer called "dune" from a vault
+server while showing all intermediate steps:
+.PP
+.RS
+.nf
+htgettoken -v -a htvault.fnal.gov -i dune
+.fi
+.RE
+.PP
+To read default options from a server (which includes an issuer and
+vault server and possibly other options) while choosing the "prod"
+role:
+.PP
+.RS
+.nf
+htgettoken -s htduneopts.fnal.gov -r prod
+.fi
+.RE
+.PP
 To always have a default vault address:
 .PP
 .RS
