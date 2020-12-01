@@ -357,6 +357,13 @@ def main():
                       metavar="rolename",
                       default="default",
                       help="vault name of role for oidc")
+    parser.add_option("--nokerberos",
+                      action="store_true", default=False,
+                      help="skip attempting to use kerberos authentication")
+    parser.add_option("--kerbpath",
+                      metavar="vaultpath",
+                      default="auth/kerberos/login",
+                      help="path in vault for accessing kerberos authentication")
     parser.add_option("--authpath",
                       metavar="vaultpath",
                       default="auth/oidc-%issuer/oidc",
@@ -364,14 +371,14 @@ def main():
     parser.add_option("-c", "--configdir",
                       metavar="path",
                       default="~/.config/" + prog,
-                      help="path to directory to save config info")
+                      help="path to directory to save configuration info")
     parser.add_option("--credkey",
                       metavar="key",
                       help="key to use in secretpath [default read from oidc and stored in %configdir/credkey-%issuer-%role]")
     parser.add_option("--secretpath",
                       metavar="vaultpath",
                       default="secret/oauth-%issuer/creds/%credkey:%role",
-                      help="path in vault for accessing bearer token secret")
+                      help="path in vault for accessing the bearer token secret")
     parser.add_option("--vaulttokenfile",
                       metavar="path",
                       default="/tmp/vt_u%uid",
@@ -547,7 +554,7 @@ def main():
                 bearertoken = getBearerToken(opener, vaultserver,
                                             vaulttoken, fullsecretpath)
             
-        if bearertoken is None:
+        if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
             service = "host@" + vaultaliasparts[2].split(':')[0]
             if options.verbose:
@@ -573,7 +580,7 @@ def main():
                 if options.debug:
                     print("Kerberos token:", kerberostoken)
 
-                url = str(vaultserver) + "/v1/auth/kerberos/login"
+                url = str(vaultserver) + "/v1/" + options.kerbpath
                 if options.verbose:
                     print("Negotiating kerberos with", vaultserver)
                 headers = {
@@ -806,7 +813,8 @@ def main():
         fullsecretpath = secretpath.replace("%credkey", credkey)
 
         if options.verbose:
-            print("Saving refresh token to %s %s" % (vaultserver, fullsecretpath))
+            print("Saving refresh token to " + vaultserver)
+            print("  at path " + fullsecretpath)
         elif showprogress:
             sys.stdout.write("Saving refresh token ...")
             sys.stdout.flush()
