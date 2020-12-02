@@ -10,7 +10,7 @@ URL: https://github.com/fermitools/htgettoken
 #    https://codeload.github.com/fermitools/htgettoken/tar.gz/%{version}
 Source0: %{name}-%{version}.tar.gz
 # recreate this with make-downloads
-Source1: %{name}-downloads.tar.gz
+Source1: %{name}-downloads-%{version}.tar.gz
 BuildRequires: python3-pip
 BuildRequires: python3-devel
 # swig and openssl-devel are needed to prevent an M2Crypto problem with
@@ -29,7 +29,7 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 
 %prep
 %setup -q
-%setup -b 1 -n %{name}-downloads -q
+%setup -b 1 -n %{name}-downloads-%{version} -q
 
 %build
 # starts out in htgettoken-downloads
