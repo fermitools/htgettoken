@@ -79,7 +79,7 @@ showprogress = False
 # based on https://stackoverflow.com/a/26286311
 def log(*args, **kwargs):
     ofile=sys.stdout
-    if options.vaulttokenfile == "/dev/stdout":
+    if options.vaulttokenfile == "/dev/stdout" or options.showbearerurl:
         ofile=sys.stderr
     print(" ".join(map(str,args)), file=ofile, **kwargs)
 
@@ -306,6 +306,9 @@ def getVaultToken(opener, vaultserver, vaulttokensecs, response):
 
 # Read a bearer token from vault
 def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
+    if options.showbearerurl:
+        print(vaultserver + '/v1/' + vaultpath)
+        options.showbearerurl = False
     if options.nobearertoken:
         # no bearer token needed, done
         sys.exit(0)
@@ -467,6 +470,9 @@ def main():
                       metavar="path",
                       default="%vaulttokenfile",
                       help="path to read vault token from")
+    parser.add_option("--showbearerurl",
+                      action="store_true", default=False,
+                      help="print the bearer URL to stdout")
     parser.add_option("--nobearertoken",
                       action="store_true", default=False,
                       help="only get a vault token, skip getting a bearer token")
