@@ -40,7 +40,8 @@ Show a help message and exit.
 Show detailed progress reports instead of the default concise reports.
 Reports are sent to stdout unless
 .I \-\-vaulttokenfile
-is /dev/stdout, in which case reports are sent to stderr.
+is /dev/stdout or
+.I \-\-showbearerurl is enabled; in those cases reports are sent to stderr.
 .TP
 .BR \-d , \ \-\-debug
 Shows debug reports.  Implies
@@ -183,6 +184,14 @@ vault token is exchanged for a new one with the requested ttl (or the
 time remaining on the incoming token if that is less).  In this way a
 script can request a long duration token, never store it on disk, and
 exchange it for a shorter duration token by calling htgettoken again.
+.TP
+.B \-\-showbearerurl
+Print the full vault API bearer token URL to stdout.  This is intended
+for easy use by a separate application that always has a valid vault
+token and only needs to be able to get new bearer tokens and doesn't
+need the rest of the 
+.B htgettoken
+functionality.
 .TP
 .B \-\-nobearertoken
 Skip getting a bearer token; only get a vault token.
