@@ -131,7 +131,17 @@ class _SslSocketWrapper(object):
             elog(prog + " program warning: close did not send shutdown")
         return ret
 
-# validate a certificate on an HTTPS connection with M2Crypto
+# Validate a certificate on an HTTPS connection with M2Crypto.
+# The primary reason for this is that by default the RHEL7 Python version
+#  2.7.5 does not verify host names on https connections.  According to
+#   https://access.redhat.com/articles/2039753
+# that could however be enabled more simply with
+#    ssl._https_verify_certificates()
+# although that is a RHEL7-specific feature and may not solve the problem
+# everywhere we want to use htgettoken.  Perhaps instead I should just
+# depend on always using python3.  If I do switch it to use the standard
+# HTTPSConnection class, remember to test what happens with timeouts.
+# 
 class CertValidatingHTTPSConnection(http_client.HTTPConnection):
     default_port = http_client.HTTPS_PORT
     ssl_timeout = 15
@@ -141,7 +151,7 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         http_client.HTTPConnection.__init__(self, host, port, **kwargs)
         self.host = host
         if port is None:
-            self.port = 443
+            self.port = http_client.HTTPS_PORT
         else:
             self.port = port
         self.key_file = key_file
