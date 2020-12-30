@@ -1,5 +1,5 @@
 <!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Tue Dec  1 16:08:40 2020 -->
+<!-- CreationDate: Wed Dec 30 13:39:47 2020 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -72,10 +72,8 @@ stores it back into an oauth secrets path in vault. It then
 reads back from the same secrets path to retrieve a bearer
 access token and stores that in a file. A vault token is
 also stored in a file so authentication doesn&rsquo;t have
-to be redone every time. Typically, vault tokens are
-configured on the vault server to last about a week but
-bearer tokens expire much sooner, on the order of an
-hour.</p>
+to be redone every time. By default the vault token lasts a
+week.</p>
 
 <p style="margin-left:11%; margin-top: 1em">OIDC
 authentication URLs are attempted to be launched directly
@@ -103,21 +101,24 @@ exit.</p>
 
 <p style="margin-left:11%;"><b>&minus;v</b>,&nbsp;<b>&minus;&minus;verbose</b></p>
 
-<p style="margin-left:22%;">Write detailed progress reports
-to stdout instead of the default concise reports.</p>
+<p style="margin-left:22%;">Show detailed progress reports
+instead of the default concise reports. Reports are sent to
+stdout unless <i>&minus;&minus;vaulttokenfile</i> is
+/dev/stdout or <i>&minus;&minus;showbearerurl is enabled; in
+those cases reports are sent to stderr.</i></p>
 
 
 <p style="margin-left:11%;"><b>&minus;d</b>,&nbsp;<b>&minus;&minus;debug</b></p>
 
-<p style="margin-left:22%;">Write debug output to stdout.
-Implies <i>&minus;v</i>. Be aware that this writes a lot of
+<p style="margin-left:22%;">Shows debug reports. Implies
+<i>&minus;v</i>. Be aware that this writes a lot of
 output.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;q</b>,&nbsp;<b>&minus;&minus;quiet</b></p>
 
-<p style="margin-left:22%;">Do not print anything, not the
-concise progress reports and not even error messages.</p>
+<p style="margin-left:22%;">Do not output any progress
+reports or error messages.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;s&nbsp;HostOrURL</b>,&nbsp;<b>&minus;&minus;optserver=HostOrURL</b></p>
@@ -153,10 +154,10 @@ multiple vault servers in a cluster are serving the same
 alias name and the address of a single server is supplied
 with <i>&minus;&minus;vaultserver</i>. The
 <i>&minus;&minus;vaultalias</i> is then used to verify that
-the service name of the vault server this expected name.
-Default is the same as <i>&minus;&minus;vaultserver</i>, and
-the same URL protocol and port are added if they are not
-supplied.</p>
+the service name of the vault server matches this expected
+name. Default is the same as
+<i>&minus;&minus;vaultserver</i>, and the same URL protocol
+and port are added if they are not supplied.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;i&nbsp;issuername</b>,&nbsp;<b>&minus;&minus;issuer=issuername</b></p>
@@ -185,10 +186,16 @@ authentication.</p>
 <p style="margin-left:22%;">The path in vault for kerberos
 authentication. The default is</p>
 
-<p style="margin-left:32%;">auth/kerberos/login</p>
+<p style="margin-left:32%;">auth/kerberos/login &nbsp;</p>
 
 
-<p style="margin-left:11%;"><b>&minus;&minus;authpath=vaultpath</b></p>
+<p style="margin-left:11%;"><b>&minus;&minus;nooidc</b></p>
+
+<p style="margin-left:22%;">Do not attempt to do OIDC
+authentication.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;oidcpath=vaultpath</b></p>
 
 <p style="margin-left:22%;">The path in vault for doing
 OIDC authentication. The default is</p>
@@ -234,15 +241,64 @@ the bearer token. The default is</p>
 are replaced by the values of the corresponding options.</p>
 
 
+<p style="margin-left:11%;"><b>&minus;&minus;vaulttokenttl=time</b></p>
+
+<p style="margin-left:22%;">The time for vault tokens to
+live before they expire. The time is a number followed by
+&rsquo;s&rsquo; for seconds, &rsquo;m&rsquo; for minutes,
+&rsquo;h&rsquo; for hours, or &rsquo;d&rsquo; for days. The
+maximum is determined by the vault configuration which is
+typically &rsquo;28d&rsquo;. The default is
+&rsquo;7d&rsquo;.</p>
+
+
 <p style="margin-left:11%;"><b>&minus;&minus;vaulttokenfile=path</b></p>
 
 <p style="margin-left:22%;">The path to save vault tokens.
-The default is</p>
+If the value of <i>&minus;&minus;vaultokenttl</i> is 1
+million seconds or less (about 11.5 days), then the default
+is</p>
 
 <p style="margin-left:32%;">/tmp/vt_u%uid</p>
 
-<p style="margin-left:22%;">where %uid is the current
-effective user id.</p>
+<p style="margin-left:22%;">otherwise it is /dev/stdout. If
+the path contains %uid it is replaced with the current
+effective user id. If the value of
+<i>&minus;&minus;vaultokenttl</i> is greater than 1 million
+seconds then the path is required to start with /dev/std or
+/dev/fd in order to adhere to IGTF security policies
+requiring user credentials that last longer than that to not
+be stored unencrypted.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;vaulttokeninfile=path</b></p>
+
+<p style="margin-left:22%;">The path to read vault tokens
+from. Defaults to %vaulttokenfile which is replaced by the
+value of the <i>&minus;&minus;vaulttokenfile</i> option. May
+contain %uid which is replaced with the current effective
+user id. If the path starts with /dev/std or /dev/fd then
+the incoming vault token is exchanged for a new one with the
+requested ttl (or the time remaining on the incoming token
+if that is less). In this way a script can request a long
+duration token, never store it on disk, and exchange it for
+a shorter duration token by calling htgettoken again.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;showbearerurl</b></p>
+
+<p style="margin-left:22%;">Print the full vault API bearer
+token URL to stdout. This is intended for easy use by a
+separate application that always has a valid vault token and
+only needs to be able to get new bearer tokens and
+doesn&rsquo;t need the rest of the <b>htgettoken</b>
+functionality.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;nobearertoken</b></p>
+
+<p style="margin-left:22%;">Skip getting a bearer token;
+only get a vault token.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;o&nbsp;path</b>,&nbsp;<b>&minus;&minus;out=path</b></p>
