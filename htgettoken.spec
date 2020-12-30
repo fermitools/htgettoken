@@ -1,4 +1,4 @@
-%define downloads_version 1.0
+%define downloads_version 1.1
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
