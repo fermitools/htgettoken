@@ -4,7 +4,7 @@ BASE=htgettoken-downloads
 set -ex
 cd "`dirname $0`"
 rm -rf $BASE-*
-BASE="$BASE-`sed -n 's/^Version: //p' htgettoken.spec`"
+BASE="$BASE-`sed -n 's/^%define downloads_version //p' htgettoken.spec`"
 mkdir $BASE
 PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
 pip3 $PIPOPTS pyinstaller

@@ -17,7 +17,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.0"
+version = "1.1"
 
 import os
 import sys
@@ -72,10 +72,22 @@ defaults = {
 # these are global
 options = None
 showprogress = False
+logfile = sys.stderr
 
+# print wrapper.  print to logfile.
+# based on https://stackoverflow.com/a/26286311
+def log(*args, **kwargs):
+    print(" ".join(map(str,args)), file=logfile, **kwargs)
+
+# send debug output from http_client to the log function
+http_client.print = log
+
+# always print to stderr
+def elog(*args, **kwargs):
+    print(" ".join(map(str,args)), file=sys.stderr, **kwargs)
 
 def usage(parser, msg):
-    print(prog + ": " + msg + '\n', file=sys.stderr)
+    elog(prog + ": " + msg + '\n')
     parser.print_help(sys.stderr)
     sys.exit(2)
 
@@ -83,8 +95,8 @@ def usage(parser, msg):
 def fatal(msg, code=1):
     if (options is None) or not options.quiet:
         if showprogress:
-            print()
-        print(prog + ": " + msg, file=sys.stderr)
+            log()
+        elog(prog + ": " + msg)
     sys.exit(code)
 
 
@@ -94,7 +106,7 @@ def efatal(msg, e, code=1):
 
 
 
-# Make a wrapper so a SSL Connection object can be opened as a file
+# Make a wrapper so a SSL Connection object can be opened as a file.
 # this is mostly from
 # http://git.ganeti.org/?p=ganeti.git;a=commitdiff;h=beba56ae8;hp=70c815118f7f8bf151044cb09868d1e3d7a63ac8
 class _SslSocketWrapper(object):
@@ -116,19 +128,32 @@ class _SslSocketWrapper(object):
         #  close() function
         ret = self._conn.close()
         if (self._conn.get_shutdown() & 1) != 1:
-            print(prog + " program warning: close did not send shutdown", file=sys.stderr)
+            elog(prog + " program warning: close did not send shutdown")
         return ret
 
-# validate a certificate on an HTTPS connection with M2Crypto
+# Validate a certificate on an HTTPS connection with M2Crypto.
+# The primary reason for this is that by default the RHEL7 Python version
+#  2.7.5 does not verify host names on https connections.  According to
+#   https://access.redhat.com/articles/2039753
+# that could however be enabled more simply with
+#    ssl._https_verify_certificates()
+# although that is a RHEL7-specific feature and may not solve the problem
+# everywhere we want to use htgettoken.  Perhaps instead I should just
+# depend on always using python3.  If I do switch it to use the standard
+# HTTPSConnection class, remember to test what happens with timeouts.
+# 
 class CertValidatingHTTPSConnection(http_client.HTTPConnection):
     default_port = http_client.HTTPS_PORT
     ssl_timeout = 15
 
-    def __init__(self, host, port=443, key_file=None, cert_file=None,
+    def __init__(self, host, port, key_file=None, cert_file=None,
                  cert_chain_file=None, cafile=None, capath=None, **kwargs):
         http_client.HTTPConnection.__init__(self, host, port, **kwargs)
         self.host = host
-        self.port = port
+        if port is None:
+            self.port = http_client.HTTPS_PORT
+        else:
+            self.port = port
         self.key_file = key_file
         self.cert_file = cert_file
         self.cert_chain_file = cert_chain_file
@@ -172,7 +197,7 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         # You can see what remains by passing this list to
         #   openssl ciphers -v.
         if context.set_cipher_list('DEFAULT:!eNULL:!aNULL:!ADH:!EXP:!LOW:!MD5:!IDEA:!RC4:@STRENGTH') != 1:
-            print("No valid ciphers")
+            fatal("No valid ciphers")
         sslconn = SSL.Connection(context)
         if "settimeout" in dir(SSL.Connection):
             # this improves the error message when it is available
@@ -218,7 +243,7 @@ class VerifiedHTTPSHandler(urllib_request.HTTPSHandler):
     def http_error_400(self, request, fp, code, msg, hdrs):
         if self.is_400_ignored():
             if options.debug:
-                print("ignoring 400 " + msg)
+                log("ignoring 400 " + msg)
             return fp
         raise HTTPError(request.get_full_url(), code, msg, hdrs, fp)
 
@@ -248,14 +273,62 @@ def parseargs(parser, argv):
         options.capath = os.getenv('X509_CERT_DIR') or defaults['capath']
 
 
+# Either extract the vault token from an auth response or exchange
+#  it for another one if the lease_duration is too long
+def getVaultToken(opener, vaultserver, vaulttokensecs, response):
+    if 'auth' not in response:
+        fatal("no 'auth' in response from %s" % vaultserver)
+    auth = response['auth']
+
+    if 'client_token' not in auth:
+        fatal("no 'client_token' in response from %s" % vaultserver)
+    vaulttoken = auth['client_token']
+
+    if 'lease_duration' in auth and int(auth['lease_duration']) <= vaulttokensecs:
+        # don't need to exchange, already the correct duration or shorter
+        return vaulttoken
+
+    # do a vault token exchange
+    url = vaultserver + '/v1/' + 'auth/token/create'
+    if options.debug:
+        # normally do this quietly; don't want to advertise the exchange
+        log("Reading from", url)
+    headers = {'X-Vault-Token': vaulttoken}
+    data = json.dumps({
+        'ttl': options.vaulttokenttl,
+        'renewable': 'false',
+    })
+    request = urllib_request.Request(url=url, headers=headers, data=data.encode())
+    handle = None
+    try:
+        handle = opener.open(request)
+    except Exception as e:
+        efatal("getting vault token from %s failed" % url, e)
+    body = handle.read()
+    if options.debug:
+        log("##### Begin vault token response")
+        log(body)
+        log("##### End vault token response")
+    try:
+        response = json.loads(body)
+    except Exception as e:
+        efatal("decoding response from %s failed" % url, e)
+    if 'auth' in response and 'client_token' in response['auth']:
+        return response['auth']['client_token']
+    fatal("no vault token in response from %s" % url)
+
 # Read a bearer token from vault
 def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
+    if options.showbearerurl:
+        print(vaultserver + '/v1/' + vaultpath)
+        options.showbearerurl = False
+    if options.nobearertoken:
+        # no bearer token needed, done
+        sys.exit(0)
     if options.verbose:
-        print("  at path " + vaultpath)
+        log("  at path " + vaultpath)
     elif showprogress:
-        sys.stdout.write('Attempting to get token from ' + vaultserver +
-                         ' ...')
-        sys.stdout.flush()
+        log('Attempting to get token from ' + vaultserver + ' ...', end='', flush=True)
     url = vaultserver + '/v1/' + vaultpath
     params = {'minimum_seconds': options.minsecs}
     if options.scopes is not None:
@@ -264,7 +337,7 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
         params['audience'] = options.audience
     url = url + '?' + urllib_parse.urlencode(params)
     if options.debug:
-        print("Reading from", url)
+        log("Reading from", url)
     headers = {'X-Vault-Token': vaulttoken}
     request = urllib_request.Request(url=url, headers=headers)
     handle = None
@@ -272,57 +345,74 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
         handle = opener.open(request)
     except Exception as e:
         if options.debug:
-            print("read of token from %s failed: %s" % (url, str(e)))
+            log("read of token from %s failed: %s" % (url, str(e)))
         if showprogress:
-            print(" failed")
+            log(" failed")
         return None
     body = handle.read()
     if options.debug:
-        print("##### Begin vault get bearer token response")
-        print(body)
-        print("##### End vault get bearer token response")
+        log("##### Begin vault get bearer token response")
+        log(body)
+        log("##### End vault get bearer token response")
     try:
         response = json.loads(body)
     except Exception as e:
         efatal("decoding response from %s failed" % url, e)
     if 'data' in response and 'access_token' in response['data']:
         if showprogress:
-            print(" succeeded")
+            log(" succeeded")
         return response['data']['access_token']
     if showprogress:
-        print(" failed")
+        log(" failed")
     return None
 
+def isDevFile(file):
+    return file.startswith("/dev/std") or file.startswith("/dev/fd")
 
 # safely write out a token to where it might be a world-writable
-#  directory
-def writeTokenSafely(token, outfile):
-    # Attempt to remove the file first in case it exists, because os.O_EXCL
-    #  requires it to be gone.  Need to use os.O_EXCL to prevent somebody
-    #  else from pre-creating the file in order to steal credentials.
-    try:
-        os.remove(outfile)
-    except:
-        pass
-    try:
-        fd, path = tempfile.mkstemp(
-            prefix=os.path.dirname(outfile) + '/.' + prog)
-        handle = os.fdopen(fd, 'w')
-    except Exception as e:
-        efatal("failure creating file", e)
+#  directory, unless the output is a device file
+def writeTokenSafely(tokentype, token, outfile):
+    dorename = False
+    if isDevFile(outfile):
+        if options.debug:
+            log("Writing", tokentype, "token to", outfile)
+        try:
+            handle = open(outfile, 'w')
+        except Exception as e:
+            efatal("failure opening for write", e)
+    else:
+        if options.verbose or showprogress:
+            log("Storing", tokentype, "token in", outfile)
+        # Attempt to remove the file first in case it exists, because os.O_EXCL
+        #  requires it to be gone.  Need to use os.O_EXCL to prevent somebody
+        #  else from pre-creating the file in order to steal credentials.
+        try:
+            os.remove(outfile)
+        except:
+            pass
+        try:
+            fd, path = tempfile.mkstemp(
+                prefix=os.path.dirname(outfile) + '/.' + prog)
+            handle = os.fdopen(fd, 'w')
+        except Exception as e:
+            efatal("failure creating file", e)
+        dorename = True
+
     try:
         handle.write(token + '\n')
     except Exception as e:
         efatal("failure writing file", e)
     handle.close()
-    try:
-        os.rename(path, outfile)
-    except Exception as e:
+
+    if dorename:
         try:
-            os.remove(outfile)
-        except:
-            pass
-        efatal("failure renaming " + path + " to " + outfile, e)
+            os.rename(path, outfile)
+        except Exception as e:
+            try:
+                os.remove(outfile)
+            except:
+                pass
+            efatal("failure renaming " + path + " to " + outfile, e)
     
 
 ### htgettoken main ####
@@ -333,10 +423,10 @@ def main():
 
     parser.add_option("-v", "--verbose",
                       action="store_true", default=False,
-                      help="write detailed progress to stdout")
+                      help="show detailed progress")
     parser.add_option("-d", "--debug",
                       action="store_true", default=False,
-                      help="write debug output to stdout (implies -v)")
+                      help="show debug output (implies -v)")
     parser.add_option("-q", "--quiet",
                       action="store_true", default=False,
                       help="do not print progress or error messages")
@@ -364,7 +454,10 @@ def main():
                       metavar="vaultpath",
                       default="auth/kerberos/login",
                       help="path in vault for accessing kerberos authentication")
-    parser.add_option("--authpath",
+    parser.add_option("--nooidc",
+                      action="store_true", default=False,
+                      help="skip attempting to use oidc authentication")
+    parser.add_option("--oidcpath",
                       metavar="vaultpath",
                       default="auth/oidc-%issuer/oidc",
                       help="path in vault for accessing oidc authentication")
@@ -379,10 +472,23 @@ def main():
                       metavar="vaultpath",
                       default="secret/oauth-%issuer/creds/%credkey:%role",
                       help="path in vault for accessing the bearer token secret")
+    parser.add_option("--vaulttokenttl",
+                      metavar="time",
+                      default="7d",
+                      help="time (s, m, h, or d suffix) for new vault token to live")
     parser.add_option("--vaulttokenfile",
                       metavar="path",
-                      default="/tmp/vt_u%uid",
-                      help="path to save vault token")
+                      help="path to save vault token [default /tmp/vt_u%uid if vaulttokenttl less than 1 million seconds, else /dev/stdout]")
+    parser.add_option("--vaulttokeninfile",
+                      metavar="path",
+                      default="%vaulttokenfile",
+                      help="path to read vault token from")
+    parser.add_option("--showbearerurl",
+                      action="store_true", default=False,
+                      help="print the bearer URL to stdout")
+    parser.add_option("--nobearertoken",
+                      action="store_true", default=False,
+                      help="only get a vault token, skip getting a bearer token")
     parser.add_option("-o", "--outfile",
                       metavar="path",
                       help="path to save bearer token " +
@@ -432,9 +538,11 @@ def main():
         if '://' not in optserver:
             optserver = 'https://' + optserver + '/' + prog + 'opts.txt'
         if options.verbose or options.debug:
-            print("Fetching options from " + optserver)
+            # Note that log messages here will always go to stderr 
+            #  because it is too early to easily know if the options
+            #  using stdout have been set
+            log("Fetching options from " + optserver)
         optrequest = urllib_request.Request(url=optserver)
-        opthandle = opener.open(optrequest)
         try:
             opthandle = opener.open(optrequest)
         except Exception as e:
@@ -444,9 +552,9 @@ def main():
             opts = str(opts.decode('utf-8'))
         opthandle.close()
         if options.debug:
-            print("##### Begin additional options")
-            print(opts)
-            print("##### End additional options")
+            log("##### Begin additional options")
+            log(opts)
+            log("##### End additional options")
         try:
             serverargs = shlex.split(opts, True)
         except Exception as e:
@@ -463,6 +571,25 @@ def main():
     if not options.quiet and not options.verbose:
         showprogress = True
 
+    # calculate vault token ttl in seconds
+    lastchr = options.vaulttokenttl[-1:]
+    numpart = options.vaulttokenttl[0:-1]
+    failmsg = "--vaulttokenttl is not a number followed by s, m, h, or d"
+    if not numpart.isnumeric():
+        fatal(failmsg)
+    vaulttokensecs = int(numpart)
+    if lastchr == 'd':
+        vaulttokensecs *= 24
+        # vault only goes up to hours
+        options.vaulttokenttl = str(vaulttokensecs) + 'h'
+        lastchr = 'h'
+    if lastchr == 'h':
+        vaulttokensecs *= 60*60
+    elif lastchr == 'm':
+        vaulttokensecs *= 60
+    elif lastchr != 's':
+        fatal(failmsg)
+
     # calculate defaults for options that are too complex for "default" keyword
     if options.outfile is None:
         options.outfile = os.getenv("BEARER_TOKEN_FILE")
@@ -472,6 +599,19 @@ def main():
                 tmpdir = '/tmp'
             options.outfile = tmpdir + "/bt_u%uid"
     outfile = options.outfile.replace("%uid", str(os.geteuid()))
+
+    if options.vaulttokenfile is None:
+        if vaulttokensecs > 1000000:
+            options.vaulttokenfile = "/dev/stdout"
+        else:
+            options.vaulttokenfile = "/tmp/vt_u%uid"
+    if vaulttokensecs > 1000000 and not isDevFile(options.vaulttokenfile):
+        fatal("--vaulttokenfile must be under /dev/ when --vaulttokenttl is greater than a million seconds")
+
+    # switch log output to stdout if nothing else is using it
+    if options.vaulttokenfile != "/dev/stdout" and not options.showbearerurl:
+        global logfile
+        logfile=sys.stdout
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
@@ -495,13 +635,13 @@ def main():
         if ':' not in vaultaliasparts[2]:
             vaultalias = vaultalias + ':8200'
 
-    # TODO: for optimization, first check to see if a valid token with
-    #  same role & scopes already exists and has enough remaining time on it
-
     secretpath = options.secretpath.replace("%issuer", options.issuer)
     secretpath = secretpath.replace("%role", options.role)
     vaulttokenfile = options.vaulttokenfile.replace("%uid", str(os.geteuid()))
     vaulttokenfile = os.path.expanduser(vaulttokenfile)
+    vaulttokeninfile = options.vaulttokeninfile.replace("%vaulttokenfile", options.vaulttokenfile)
+    vaulttokeninfile = vaulttokeninfile.replace("%uid", str(os.geteuid()))
+    vaulttokeninfile = os.path.expanduser(vaulttokeninfile)
     vaulttoken = None
     bearertoken = None
 
@@ -513,43 +653,59 @@ def main():
         configfile = os.path.expanduser(configfile)
         if not os.path.exists(configfile):
             if options.debug:
-                print(configfile, "does not yet exist")
+                log(configfile, "does not yet exist")
         else:
             if options.debug:
-                print("Reading", configfile)
+                log("Reading", configfile)
             try:
                 with open(configfile, 'r') as file:
                     credkey = file.read().strip()
             except Exception as e:
                 if options.debug:
-                    print("Could not read " + configfile + ": " +
+                    log("Could not read " + configfile + ": " +
                           type(e).__name__ + ": " + str(e), e)
             else:
                 if options.verbose:
-                    print("Credkey from %s: %s" % (configfile, credkey))
+                    log("Credkey from %s: %s" % (configfile, credkey))
 
-    if credkey is not None:
-        fullsecretpath = secretpath.replace("%credkey", credkey)
+    if credkey is not None or options.nobearertoken:
+        fullsecretpath = ""
+        if not options.nobearertoken:
+            fullsecretpath = secretpath.replace("%credkey", credkey)
 
-        # Check to see if a valid vault token already exists by
+        # Check to see if a valid vault token already exists and works by
         #   attempting to read a bearer token
-        if not os.path.exists(vaulttokenfile):
+        if not os.path.exists(vaulttokeninfile):
             if options.debug:
-                print(vaulttokenfile, "does not yet exist")
+                log(vaulttokeninfile, "does not yet exist")
         else:
             if options.debug:
-                print("Reading", vaulttokenfile)
+                log("Reading", vaulttokeninfile)
             try:
-                with open(vaulttokenfile, 'r') as file:
+                with open(vaulttokeninfile, 'r') as file:
                     vaulttoken = file.read().strip()
             except Exception as e:
                 if options.debug:
-                    print("Could not load " + vaulttokenfile + ": " +
+                    log("Could not load " + vaulttokeninfile + ": " +
                           type(e).__name__ + ": " + str(e), e)
             else:
-                if options.verbose:
-                    print("Attempting to get bearer token from", vaultserver)
-                    print("  using vault token from", vaulttokenfile)
+                if isDevFile(options.vaulttokeninfile):
+                    # The incoming vault token location is coming from /dev,
+                    #  so first try to exchange it for one with a duration
+                    #  no longer than the requested duration and write that
+                    #  out.  This is used to make a vault token with a
+                    #  short enough lifetime to limit security risk when
+                    #  stored on disk.
+
+                    # construct fake "response" for getVaultToken
+                    response = {'auth' : {'client_token': vaulttoken}}
+                    vaulttoken = getVaultToken(opener, vaultserver, 
+                                                vaulttokensecs, response)
+                    writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+            
+                if options.verbose and not options.nobearertoken:
+                    log("Attempting to get bearer token from", vaultserver)
+                    log("  using vault token from", vaulttokeninfile)
 
                 bearertoken = getBearerToken(opener, vaultserver,
                                             vaulttoken, fullsecretpath)
@@ -558,11 +714,9 @@ def main():
             # Try kerberos authentication with vault
             service = "host@" + vaultaliasparts[2].split(':')[0]
             if options.verbose:
-                print("Initializing kerberos client for", service)
+                log("Initializing kerberos client for", service)
             elif showprogress:
-                sys.stdout.write('Attempting kerberos auth with ' + vaultserver +
-                                 ' ...')
-                sys.stdout.flush()
+                log('Attempting kerberos auth with ' + vaultserver + ' ...', end='', flush=True)
             kcontext = None
             try:
                 __, kcontext = kerberos.authGSSClientInit(service=service,
@@ -571,18 +725,18 @@ def main():
             except Exception as e:
                 kcontext = None
                 if options.verbose:
-                    print("Kerberos init failed", e)
+                    log("Kerberos init failed", e)
                 elif showprogress:
-                    print(" failed")
+                    log(" failed")
 
             if kcontext != None:
                 kerberostoken = kerberos.authGSSClientResponse(kcontext)
                 if options.debug:
-                    print("Kerberos token:", kerberostoken)
+                    log("Kerberos token:", kerberostoken)
 
                 url = str(vaultserver) + "/v1/" + options.kerbpath
                 if options.verbose:
-                    print("Negotiating kerberos with", vaultserver)
+                    log("Negotiating kerberos with", vaultserver)
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Authorization': 'Negotiate ' + kerberostoken
@@ -593,58 +747,56 @@ def main():
                     handle = opener.open(request)
                 except Exception as e:
                     if showprogress:
-                        print(" failed")
+                        log(" failed")
                     efatal("Kerberos negotiate with %s failed" % url, e)
 
                 body = handle.read()
                 if options.debug:
-                    print("##### Begin vault kerberos response")
-                    print(body)
-                    print("##### End vault kerberos response")
+                    log("##### Begin vault kerberos response")
+                    log(body)
+                    log("##### End vault kerberos response")
                 response = json.loads(body)
                 if 'auth' in response and response['auth'] is not None:
                     if showprogress:
-                        print(" succeeded")
-                    vaulttoken=response['auth']['client_token']
-                    if options.verbose or showprogress:
-                        print("Storing vault token in", vaulttokenfile)
-                    writeTokenSafely(vaulttoken, vaulttokenfile)
+                        log(" succeeded")
+                    vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
+                    writeTokenSafely("vault", vaulttoken, vaulttokenfile)
 
                     if options.verbose:
-                        print("Attempting to get bearer token from " + vaultserver)
+                        log("Attempting to get bearer token from " + vaultserver)
 
                     bearertoken = getBearerToken(opener, vaultserver,
                                                 vaulttoken, fullsecretpath)
 
                 elif options.verbose:
-                    print("Kerberos authentication failed")
+                    log("Kerberos authentication failed")
                     if options.debug:
                         if 'warnings' in response:
                             for warning in response['warnings']:
-                                print("  " + warning)
+                                log("  " + warning)
                         if 'errors' in response:
                             for error in response['errors']:
-                                print("  " + error)
+                                log("  " + error)
                 elif showprogress:
-                    print(" failed")
+                    log(" failed")
 
-    if bearertoken is None:
+    if bearertoken is None and not options.nooidc:
         if options.verbose or showprogress:
-            print("Attempting OIDC authentication with", vaultserver)
-        authpath = options.authpath.replace("%issuer", options.issuer)
-        url = vaultserver + '/v1/' + authpath + '/auth_url'
+            log("Attempting OIDC authentication with", vaultserver)
+        oidcpath = options.oidcpath.replace("%issuer", options.issuer)
+        url = vaultserver + '/v1/' + oidcpath + '/auth_url'
         nonce = secrets.token_urlsafe()
         authdata = {
             'role': options.role,
             'client_nonce': nonce,
-            'redirect_uri': vaultalias + '/v1/' + authpath + '/callback'
+            'redirect_uri': vaultalias + '/v1/' + oidcpath + '/callback'
         }
         data = json.dumps(authdata)
         if options.debug:
-            print("Authenticating to", url)
-            print("##### Begin authentication data")
-            print(data)
-            print("##### End authentication data")
+            log("Authenticating to", url)
+            log("##### Begin authentication data")
+            log(data)
+            log("##### End authentication data")
         request = urllib_request.Request(url=url, data=data.encode())
         handle = None
         try:
@@ -653,9 +805,9 @@ def main():
             efatal("Initiating authentication to %s failed" % vaultserver, e)
         body = handle.read()
         if options.debug:
-            print("##### Begin vault initiate auth response")
-            print(body)
-            print("##### End vault initiate auth response")
+            log("##### Begin vault initiate auth response")
+            log(body)
+            log("##### End vault initiate auth response")
         try:
             response = json.loads(body)
         except Exception as e:
@@ -671,13 +823,13 @@ def main():
         if auth_url is "":
             fatal("'auth_url' is empty in data from %s" % vaultserver)
 
-        print()
-        print("Complete the authentication via web browser at:")
-        print("    " + auth_url)
+        log()
+        log("Complete the authentication via web browser at:")
+        log("    " + auth_url)
         if 'user_code' in data:
-            print("When prompted, enter code " + data['user_code'])
+            log("When prompted, enter code " + data['user_code'])
             del data['user_code']
-        print()
+        log()
          
         # Don't use python's webbrowser library; it tries too many things
         browser = os.getenv("BROWSER")
@@ -690,7 +842,7 @@ def main():
                 # list of common gui browsers copied from el7 xdg-open
                 browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
             if options.debug:
-                print("Setting BROWSER=" + browser)
+                log("Setting BROWSER=" + browser)
             os.putenv("BROWSER", browser)
         opencmd = 'xdg-open'
         cp = None
@@ -698,33 +850,33 @@ def main():
             opencmd = 'open'
         try:
             if options.debug:
-                print("Running", opencmd, auth_url)
+                log("Running", opencmd, auth_url)
             cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
         except:
             pass
         if cp is None or cp.returncode != 0:
-            print("Couldn't open browser with '%s', please open URL manually" % opencmd)
-            print()
+            log("Couldn't open browser with '%s', please open URL manually" % opencmd)
+            log()
 
         pollinterval = 0
         data['client_nonce'] = nonce
         datastr = ''
         if 'state' in data:
-            url = vaultserver + '/v1/' + authpath + '/poll'
+            url = vaultserver + '/v1/' + oidcpath + '/poll'
             if 'poll_interval' in data:
                 pollinterval = int(data['poll_interval'])
                 del data['poll_interval']
         else:
             # backward compatibility for old device flow implementation
-            url = vaultserver + '/v1/' + authpath + '/device_wait'
+            url = vaultserver + '/v1/' + oidcpath + '/device_wait'
             data['role'] = options.role
         datastr = json.dumps(data)
         if options.debug:
-            print("Continuing authentication at", url)
+            log("Continuing authentication at", url)
             if datastr != '':
-                print("##### Begin continuation data")
-                print(datastr)
-                print("##### End continuation data")
+                log("##### Begin continuation data")
+                log(datastr)
+                log("##### End continuation data")
 
         response = None
         while True:
@@ -739,10 +891,10 @@ def main():
                     CertValidatingHTTPSConnection.set_timeout(savetimeout)
                 else:
                     if options.debug:
-                        print("waiting for " + str(pollinterval) + " seconds")
+                        log("waiting for " + str(pollinterval) + " seconds")
                     time.sleep(pollinterval)
                     if options.debug:
-                        print("polling")
+                        log("polling")
                     # The normal "authorized_pending" response comes in
                     #  the body of a 400 Bad Request.  If we let the
                     #  exception go as normal, the handle gets closed and
@@ -755,9 +907,9 @@ def main():
                 efatal("Authentication to %s failed" % vaultserver, e)
             body = handle.read()
             if options.debug:
-                print("##### Begin vault auth response")
-                print(body)
-                print("##### End vault auth response")
+                log("##### Begin vault auth response")
+                log(body)
+                log("##### End vault auth response")
             try:
                 response = json.loads(body)
             except Exception as e:
@@ -769,22 +921,15 @@ def main():
                 elif errors[0] != "authorization_pending":
                     fatal("error in response from %s: %s" % (vaultserver, errors[0]))
                 if options.debug:
-                    print("authorization pending, trying again")
+                    log("authorization pending, trying again")
             else:
                 # good reply
                 break
 
-        if 'auth' not in response:
-            fatal("no 'auth' in response from %s" % vaultserver)
+        vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
+        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+
         auth = response['auth']
-
-        if 'client_token' not in auth:
-            fatal("no 'client_token' in response from %s" % vaultserver)
-        vaulttoken = auth['client_token']
-        if options.verbose or showprogress:
-            print("Storing vault token in", vaulttokenfile)
-        writeTokenSafely(vaulttoken, vaulttokenfile)
-
         if 'metadata' not in auth:
             fatal("no 'metadata' in response from %s" % vaultserver)
         metadata = auth['metadata']
@@ -794,9 +939,9 @@ def main():
             credkey = metadata['credkey']
 
             if options.verbose:
-                print("Saving credkey to %s: %s" % (configfile, credkey))
+                log("Saving credkey to %s: %s" % (configfile, credkey))
             elif showprogress:
-                print("Saving credkey to %s" % configfile)
+                log("Saving credkey to %s" % configfile)
             try:
                 os.makedirs(os.path.expanduser(options.configdir), exist_ok=True)
             except Exception as e:
@@ -813,43 +958,40 @@ def main():
         fullsecretpath = secretpath.replace("%credkey", credkey)
 
         if options.verbose:
-            print("Saving refresh token to " + vaultserver)
-            print("  at path " + fullsecretpath)
+            log("Saving refresh token to " + vaultserver)
+            log("  at path " + fullsecretpath)
         elif showprogress:
-            sys.stdout.write("Saving refresh token ...")
-            sys.stdout.flush()
+            log("Saving refresh token ...", end='', flush=True)
         url = vaultserver + '/v1/' + fullsecretpath
         headers = {'X-Vault-Token': vaulttoken}
         data = json.dumps({'refresh_token': refresh_token})
         if options.debug:
-            print("Refresh token url is", url)
-            print("##### Begin refresh token storage data")
-            print(data)
-            print("##### End refresh token storage data")
+            log("Refresh token url is", url)
+            log("##### Begin refresh token storage data")
+            log(data)
+            log("##### End refresh token storage data")
         request = urllib_request.Request(url=url, headers=headers, data=data.encode())
         handle = None
         try:
             handle = opener.open(request)
         except Exception as e:
             if showprogress:
-                print(" failed")
+                log(" failed")
             efatal("Refresh token storage to %s failed" % vaultserver, e)
         if showprogress:
-            print(" done")
+            log(" done")
 
         if options.verbose:
-            print("Getting bearer token from " + vaultserver)
+            log("Getting bearer token from " + vaultserver)
 
         bearertoken = getBearerToken(opener, vaultserver,
                                     vaulttoken, fullsecretpath)
 
-        if bearertoken is None:
-            fatal("Failure getting token from " + vaultserver)
+    if bearertoken is None:
+        fatal("Failure getting token from " + vaultserver)
 
     # Write bearer token to outfile
-    if options.verbose or showprogress:
-        print("Storing bearer token in", outfile)
-    writeTokenSafely(bearertoken, outfile)
+    writeTokenSafely("bearer", bearertoken, outfile)
 
 
 if __name__ == '__main__':
