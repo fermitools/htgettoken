@@ -717,6 +717,9 @@ def main():
                 log("Initializing kerberos client for", service)
             elif showprogress:
                 log('Attempting kerberos auth with ' + vaultserver + ' ...', end='', flush=True)
+            if os.getenv("KRB5_CONFIG") is None:
+                # skip reading from /etc/krb5.conf, it can interfere
+                os.putenv("KRB5_CONFIG", "")
             kcontext = None
             try:
                 __, kcontext = kerberos.authGSSClientInit(service=service,
