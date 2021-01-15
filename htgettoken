@@ -83,11 +83,11 @@ def log(*args, **kwargs):
 http_client.print = log
 
 # always print to stderr
-def elog(*args, **kwargs):
+def logerr(*args, **kwargs):
     print(" ".join(map(str,args)), file=sys.stderr, **kwargs)
 
 def usage(parser, msg):
-    elog(prog + ": " + msg + '\n')
+    logerr(prog + ": " + msg + '\n')
     parser.print_help(sys.stderr)
     sys.exit(2)
 
@@ -96,14 +96,44 @@ def fatal(msg, code=1):
     if (options is None) or not options.quiet:
         if showprogress:
             log()
-        elog(prog + ": " + msg)
+        logerr(prog + ": " + msg)
     sys.exit(code)
 
+# expand an exception to get maximum info
+def expandexception(e):
+    typ = type(e).__name__
+    msg = typ + ': ' + str(e)
+    if typ == 'HTTPError':
+        errmsg = e.read().decode()
+        try:
+            decoded = json.loads(errmsg)
+            errmsg = ':'
+            if 'errors' in decoded:
+                for error in decoded['errors']:
+                    errmsg += ' ' + error
+            elif 'warnings' in decoded:
+                for warning in decoded['warnings']:
+                    errmsg += ' ' + warning
+            else:
+                errmsg = ''
+                for key in decoded.keys():
+                    errmsg += ', ' + key + ': ' + str(decoded[key])
+        except:
+            errmsg = ' ' + errmsg
+        msg += errmsg
+    elif typ == 'GSSError':
+        msg = typ + ':'
+        for arg in e.args:
+            msg += ' ' + arg[0] + '.'
+    return msg
 
 # print exception type name and contents after fatal error message
 def efatal(msg, e, code=1):
-    fatal(msg + ': ' + type(e).__name__ + ': ' + str(e), code)
+    fatal(msg + ': ' + expandexception(e), code)
 
+# log an exception after given message
+def elog(msg, e):
+    log(msg + ': ' + expandexception(e))
 
 
 # Make a wrapper so a SSL Connection object can be opened as a file.
@@ -128,7 +158,7 @@ class _SslSocketWrapper(object):
         #  close() function
         ret = self._conn.close()
         if (self._conn.get_shutdown() & 1) != 1:
-            elog(prog + " program warning: close did not send shutdown")
+            logerr(prog + " program warning: close did not send shutdown")
         return ret
 
 # Validate a certificate on an HTTPS connection with M2Crypto.
@@ -344,9 +374,9 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
     try:
         handle = opener.open(request)
     except Exception as e:
-        if options.debug:
-            log("read of token from %s failed: %s" % (url, str(e)))
-        if showprogress:
+        if options.verbose:
+            elog("Read token from %s failed" % url, e)
+        elif showprogress:
             log(" failed")
         return None
     body = handle.read()
@@ -662,8 +692,7 @@ def main():
                     credkey = file.read().strip()
             except Exception as e:
                 if options.debug:
-                    log("Could not read " + configfile + ": " +
-                          type(e).__name__ + ": " + str(e), e)
+                    elog("Could not read " + configfile, e)
             else:
                 if options.verbose:
                     log("Credkey from %s: %s" % (configfile, credkey))
@@ -686,8 +715,7 @@ def main():
                     vaulttoken = file.read().strip()
             except Exception as e:
                 if options.debug:
-                    log("Could not load " + vaulttokeninfile + ": " +
-                          type(e).__name__ + ": " + str(e), e)
+                    elog("Could not load " + vaulttokeninfile, e)
             else:
                 if isDevFile(options.vaulttokeninfile):
                     # The incoming vault token location is coming from /dev,
@@ -728,7 +756,7 @@ def main():
             except Exception as e:
                 kcontext = None
                 if options.verbose:
-                    log("Kerberos init failed", e)
+                    elog("Kerberos init failed", e)
                 elif showprogress:
                     log(" failed")
 
