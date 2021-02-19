@@ -3,7 +3,7 @@
 `htgettoken` gets OIDC bearer access tokens by interacting with a
 Hashicorp vault server configured for retrieving and storing OIDC
 refresh tokens using the
-[htvault-config package](https://github.com/fermitools/htvault-config].
+[htvault-config package](https://github.com/fermitools/htvault-config).
 
 For details on its usage please see the
 [man page](https://htmlpreview.github.io/?https://github.com/fermitools/htgettoken/blob/master/htgettoken.html).
