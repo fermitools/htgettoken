@@ -13,7 +13,7 @@ distributed in the
 [Open Science Grid yum repositories](https://opensciencegrid.org/docs/common/yum/#install-the-osg-repositories).
 
 See this
-[paper](https://github.com/fermitools/htgettoken/files/6052742/CHEP21_Paper_Htgettoken.pdf)
+[paper](https://github.com/fermitools/htgettoken/files/6063416/CHEP21_Paper_Htgettoken.pdf)
 submitted to
 [vCHEP 2021](https://indico.cern.ch/event/948465/)
 for a description of htgettoken, htconfig-vault, and their HTCondor
