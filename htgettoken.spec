@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.1
+Version: 1.2
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -31,7 +31,7 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 
 %prep
 %setup -q
-%setup -b 1 -n %{name}-downloads-%{downloads_version} -q
+%setup -q -T -b 1 -n %{name}-downloads-%{downloads_version}
 
 %build
 # starts out in htgettoken-downloads
@@ -99,6 +99,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Apr  8 2021 Dave Dykstra <dwd@fnal.gov> 1.2-1
+- Fix working with a kerberos domain that is missing from krb5.conf
+- Extract more formatted information from http exceptions
+- Improve format of printed kerberos exceptions
+
 * Wed Dec 30 2020 Dave Dykstra <dwd@fnal.gov> 1.1-1
 - Integrate with htcondor, including these changes:
  - Change --authpath option name to --oidcpath.
