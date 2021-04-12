@@ -16,5 +16,5 @@ See this
 [paper](https://github.com/fermitools/htgettoken/files/6063416/CHEP21_Paper_Htgettoken.pdf)
 submitted to
 [vCHEP 2021](https://indico.cern.ch/event/948465/)
-for a description of htgettoken, htconfig-vault, and their HTCondor
+for a description of htgettoken, htvault-config, and their HTCondor
 integration.
