@@ -11,6 +11,10 @@ For details on its usage please see the
 Packaging for Red Hat Enterprise Linux systems is included.  Rpms are
 distributed in the
 [Open Science Grid yum repositories](https://opensciencegrid.org/docs/common/yum/#install-the-osg-repositories).
+After enabling the OSG repositories, do this as root to install it:
+```
+yum install htgettoken
+```
 
 See this
 [paper](https://github.com/fermitools/htgettoken/files/6063416/CHEP21_Paper_Htgettoken.pdf)
