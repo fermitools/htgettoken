@@ -16,6 +16,12 @@ After enabling the OSG repositories, do this as root to install it:
 yum install htgettoken
 ```
 
+htgettoken and Vault are also integrated with 
+[HTCondor](https://htcondor-vault.readthedocs.io/en/latest/admin-manual/setting-up-special-environments.html?highlight=vault#enabling-the-fetching-and-use-of-oauth2-credentials).
+It is currently available in htcondor-8.9.13 in the OSG 3.5 
+osg-upcoming-development yum repository and the
+OSG 3.6 osg-development yum repository.
+
 See this
 [paper](https://github.com/fermitools/htgettoken/files/6063416/CHEP21_Paper_Htgettoken.pdf)
 submitted to
