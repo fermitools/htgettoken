@@ -18,9 +18,8 @@ yum install htgettoken
 
 htgettoken and Vault are also integrated with 
 [HTCondor](https://htcondor-vault.readthedocs.io/en/latest/admin-manual/setting-up-special-environments.html#\using-vault-as-the-oauth-client).
-It is currently available in htcondor-8.9.13 in the OSG 3.5 
-osg-upcoming-development yum repository and the
-OSG 3.6 osg-development yum repository.
+It is currently available in htcondor-9.0.0 in the OSG 3.5 osg-upcoming
+yum repository and the OSG 3.6 osg yum repository.
 
 See this
 [paper](https://github.com/fermitools/htgettoken/files/6063416/CHEP21_Paper_Htgettoken.pdf)
