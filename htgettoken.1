@@ -104,6 +104,16 @@ auth/kerberos/login
 .RE
 .RE
 .TP
+.BR \-\-kerbprincipal=principal
+Principal to use for kerberos authentication.  The principal has to be
+among those cached on the current machine when a cache collection is
+available, for example when $KRB5CCNAME begins with "DIR:".  The default
+is the currently selected principal.  See the
+.B kswitch
+command and the "-l" option of the
+.B klist
+command for more information.
+.TP
 .BR \ \-\-nooidc
 Do not attempt to do OIDC authentication.
 .TP

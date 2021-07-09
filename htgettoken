@@ -484,6 +484,9 @@ def main():
                       metavar="vaultpath",
                       default="auth/kerberos/login",
                       help="path in vault for accessing kerberos authentication")
+    parser.add_option("--kerbprincipal",
+                      metavar="principal",
+                      help="alternate kerberos principal for kerberos authentication")
     parser.add_option("--nooidc",
                       action="store_true", default=False,
                       help="skip attempting to use oidc authentication")
@@ -751,7 +754,8 @@ def main():
             kcontext = None
             try:
                 __, kcontext = kerberos.authGSSClientInit(service=service,
-                                    mech_oid=kerberos.GSS_MECH_OID_SPNEGO)
+                                    mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
+                                    principal=options.kerbprincipal)
                 kerberos.authGSSClientStep(kcontext, "")
             except Exception as e:
                 kcontext = None
