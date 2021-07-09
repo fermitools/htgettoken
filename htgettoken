@@ -482,7 +482,7 @@ def main():
                       help="skip attempting to use kerberos authentication")
     parser.add_option("--kerbpath",
                       metavar="vaultpath",
-                      default="auth/kerberos/login",
+                      default="auth/kerberos-%issuer_%role/login",
                       help="path in vault for accessing kerberos authentication")
     parser.add_option("--kerbprincipal",
                       metavar="principal",
@@ -769,9 +769,12 @@ def main():
                 if options.debug:
                     log("Kerberos token:", kerberostoken)
 
-                url = str(vaultserver) + "/v1/" + options.kerbpath
+                kerbpath = options.kerbpath.replace("%issuer", options.issuer)
+                kerbpath = kerbpath.replace("%role", options.role)
+                url = str(vaultserver) + "/v1/" + kerbpath
                 if options.verbose:
                     log("Negotiating kerberos with", vaultserver)
+                    log("  at path " + kerbpath)
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Authorization': 'Negotiate ' + kerberostoken
