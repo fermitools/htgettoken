@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.2
+Version: 1.3
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -82,6 +82,8 @@ mkdir -p $RPM_BUILD_ROOT%{_bindir}
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/man/man1
 mkdir -p $RPM_BUILD_ROOT%{_libexecdir}/%{name}
 cp -r dist/%{name} $RPM_BUILD_ROOT%{_libexecdir}
+# somehow through this cp process some files can become non-readable, repair
+find $RPM_BUILD_ROOT%{_libexecdir} ! -perm -400|xargs -rt chmod u+r
 cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 #!/bin/bash
 exec %{_libexecdir}/%{name}/%{name} "$@"
@@ -99,6 +101,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon Jul 12 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
+- Add --kerbprincipal option
+- Change the default kerbpath to include issuer and role
+- Limit oidc polling to 2 minutes
+- Disable oidc authenticatio when running in the background, that is, when
+    none of stdin, stdout, or stderr are on a tty
+- Document that audience can be a comma or space separated list
+
 * Thu Apr  8 2021 Dave Dykstra <dwd@fnal.gov> 1.2-1
 - Fix working with a kerberos domain that is missing from krb5.conf
 - Extract more formatted information from http exceptions

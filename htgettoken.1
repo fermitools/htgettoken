@@ -100,9 +100,19 @@ Do not attempt to use kerberos authentication.
 The path in vault for kerberos authentication.  The default is
 .RS
 .RS
-auth/kerberos/login
+auth/kerberos-%issuer_%role/login
 .RE
 .RE
+.TP
+.BR \-\-kerbprincipal=principal
+Principal to use for kerberos authentication.  The principal has to be
+among those cached on the current machine when a cache collection is
+available, for example when $KRB5CCNAME begins with "DIR:".  The default
+is the currently selected principal.  See the
+.B kswitch
+command and the "-l" option of the
+.B klist
+command for more information.
 .TP
 .BR \ \-\-nooidc
 Do not attempt to do OIDC authentication.
@@ -220,13 +230,14 @@ leaving enough time for a token to still be usable.
 The default is 60.
 .TP
 .B \-\-scopes=scopes
-A comma-separated list of scopes to request for a bearer token.  This
-should be a subset of the scopes that come by default in the token.  It
-uses token exchange with the token issuer, and the result is not cached
+A comma- or space-separated list of scopes to request for a bearer token.
+This should be a subset of the scopes that come by default in the token.
+It uses token exchange with the token issuer, and the result is not cached
 in vault; instead, vault exchanges the cached token for the new one.
 .TP
 .B \-\-audience=audience
-A more restricted audience for the token.  Like the
+A comma- or space-separated list of more restricted audiences for the token.
+Like the
 .I \-\-scopes
 option, this uses token exchange with the token issuer.
 .TP

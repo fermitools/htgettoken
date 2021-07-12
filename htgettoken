@@ -17,7 +17,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.1"
+version = "1.3"
 
 import os
 import sys
@@ -482,8 +482,11 @@ def main():
                       help="skip attempting to use kerberos authentication")
     parser.add_option("--kerbpath",
                       metavar="vaultpath",
-                      default="auth/kerberos/login",
+                      default="auth/kerberos-%issuer_%role/login",
                       help="path in vault for accessing kerberos authentication")
+    parser.add_option("--kerbprincipal",
+                      metavar="principal",
+                      help="alternate kerberos principal for kerberos authentication")
     parser.add_option("--nooidc",
                       action="store_true", default=False,
                       help="skip attempting to use oidc authentication")
@@ -528,10 +531,10 @@ def main():
                       help="minimum number of seconds in bearer token to reuse")
     parser.add_option("--scopes",
                       metavar="scopes",
-                      help="comma-separated list of reduced scopes for token")
+                      help="reduced list of scopes for token")
     parser.add_option("--audience",
                       metavar="audience",
-                      help="restricted audience for token")
+                      help="more restricted list of audiences for token")
     parser.add_option("--cafile",
                       metavar="file", default=defaults['cafile'],
                       help="Certifying Authority certificates bundle file")
@@ -638,10 +641,16 @@ def main():
     if vaulttokensecs > 1000000 and not isDevFile(options.vaulttokenfile):
         fatal("--vaulttokenfile must be under /dev/ when --vaulttokenttl is greater than a million seconds")
 
-    # switch log output to stdout if nothing else is using it
     if options.vaulttokenfile != "/dev/stdout" and not options.showbearerurl:
+        # switch log output to stdout if nothing else is using it
         global logfile
         logfile=sys.stdout
+
+    if not options.nooidc and not sys.stdout.isatty() \
+                and not sys.stderr.isatty() and not sys.stdin.isatty():
+        if options.verbose:
+            log("Disabling oidc because running in the background")
+        options.nooidc = True
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
@@ -751,7 +760,8 @@ def main():
             kcontext = None
             try:
                 __, kcontext = kerberos.authGSSClientInit(service=service,
-                                    mech_oid=kerberos.GSS_MECH_OID_SPNEGO)
+                                    mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
+                                    principal=options.kerbprincipal)
                 kerberos.authGSSClientStep(kcontext, "")
             except Exception as e:
                 kcontext = None
@@ -765,9 +775,12 @@ def main():
                 if options.debug:
                     log("Kerberos token:", kerberostoken)
 
-                url = str(vaultserver) + "/v1/" + options.kerbpath
+                kerbpath = options.kerbpath.replace("%issuer", options.issuer)
+                kerbpath = kerbpath.replace("%role", options.role)
+                url = str(vaultserver) + "/v1/" + kerbpath
                 if options.verbose:
                     log("Negotiating kerberos with", vaultserver)
+                    log("  at path " + kerbpath)
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Authorization': 'Negotiate ' + kerberostoken
@@ -910,6 +923,7 @@ def main():
                 log("##### End continuation data")
 
         response = None
+        secswaited = 0
         while True:
             request = urllib_request.Request(url=url, data=datastr.encode())
             handle = None
@@ -921,9 +935,12 @@ def main():
                     handle = opener.open(request)
                     CertValidatingHTTPSConnection.set_timeout(savetimeout)
                 else:
+                    if secswaited > 120:
+                        fatal("Polling for response took longer than 2 minutes")
                     if options.debug:
                         log("waiting for " + str(pollinterval) + " seconds")
                     time.sleep(pollinterval)
+                    secswaited += pollinterval
                     if options.debug:
                         log("polling")
                     # The normal "authorized_pending" response comes in
