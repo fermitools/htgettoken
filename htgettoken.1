@@ -230,13 +230,14 @@ leaving enough time for a token to still be usable.
 The default is 60.
 .TP
 .B \-\-scopes=scopes
-A comma-separated list of scopes to request for a bearer token.  This
-should be a subset of the scopes that come by default in the token.  It
-uses token exchange with the token issuer, and the result is not cached
+A comma- or space-separated list of scopes to request for a bearer token.
+This should be a subset of the scopes that come by default in the token.
+It uses token exchange with the token issuer, and the result is not cached
 in vault; instead, vault exchanges the cached token for the new one.
 .TP
 .B \-\-audience=audience
-A more restricted audience for the token.  Like the
+A comma- or space-separated list of more restricted audiences for the token.
+Like the
 .I \-\-scopes
 option, this uses token exchange with the token issuer.
 .TP
