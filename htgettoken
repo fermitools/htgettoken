@@ -641,10 +641,16 @@ def main():
     if vaulttokensecs > 1000000 and not isDevFile(options.vaulttokenfile):
         fatal("--vaulttokenfile must be under /dev/ when --vaulttokenttl is greater than a million seconds")
 
-    # switch log output to stdout if nothing else is using it
     if options.vaulttokenfile != "/dev/stdout" and not options.showbearerurl:
+        # switch log output to stdout if nothing else is using it
         global logfile
         logfile=sys.stdout
+
+    if not options.nooidc and not sys.stdout.isatty() \
+                and not sys.stderr.isatty() and not sys.stdin.isatty():
+        if options.verbose:
+            log("Disabling oidc because running in the background")
+        options.nooidc = True
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
