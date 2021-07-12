@@ -531,10 +531,10 @@ def main():
                       help="minimum number of seconds in bearer token to reuse")
     parser.add_option("--scopes",
                       metavar="scopes",
-                      help="comma-separated list of reduced scopes for token")
+                      help="reduced list of scopes for token")
     parser.add_option("--audience",
                       metavar="audience",
-                      help="restricted audience for token")
+                      help="more restricted list of audiences for token")
     parser.add_option("--cafile",
                       metavar="file", default=defaults['cafile'],
                       help="Certifying Authority certificates bundle file")
