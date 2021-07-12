@@ -917,6 +917,7 @@ def main():
                 log("##### End continuation data")
 
         response = None
+        secswaited = 0
         while True:
             request = urllib_request.Request(url=url, data=datastr.encode())
             handle = None
@@ -928,9 +929,12 @@ def main():
                     handle = opener.open(request)
                     CertValidatingHTTPSConnection.set_timeout(savetimeout)
                 else:
+                    if secswaited > 120:
+                        fatal("Polling for response took longer than 2 minutes")
                     if options.debug:
                         log("waiting for " + str(pollinterval) + " seconds")
                     time.sleep(pollinterval)
+                    secswaited += pollinterval
                     if options.debug:
                         log("polling")
                     # The normal "authorized_pending" response comes in
