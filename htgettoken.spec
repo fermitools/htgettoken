@@ -115,7 +115,7 @@ rm -rf $RPM_BUILD_ROOT
 - Add --kerbprincipal option
 - Change the default kerbpath to include issuer and role
 - Limit oidc polling to 2 minutes
-- Disable oidc authenticatio when running in the background, that is, when
+- Disable oidc authentication when running in the background, that is, when
     none of stdin, stdout, or stderr are on a tty
 - Document that audience can be a comma or space separated list
 - Updated pip-installed dependent packages to latest versions
