@@ -1,4 +1,4 @@
-%define downloads_version 1.1
+%define downloads_version 1.2
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
@@ -36,15 +36,25 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %build
 # starts out in htgettoken-downloads
 
+set -e
+PYDIR=$PWD/.local
+PATH=$PYDIR/bin:$PATH
+export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
+
 # install in reverse order of their download (because dependency downloads
 #   come after requested packages)
-HOME=$PWD pip3 install --no-cache-dir --user $(echo $(find . -type f | grep -v "/.local"| tac))
-
-PYDIR=$PWD/.local
+PKGS="$(tar tf %{SOURCE1} |sed 's,^%{name}-downloads-[^/]*/,,'| grep -v "^\.local"| tac)"
+# installing wheel separately first eliminates warnings about falling back
+#   to setup.py
+WHEELPKG="$(echo "$PKGS"|grep ^wheel)"
+PKGS="$(echo "$PKGS"|grep -v ^wheel|paste -sd ' ')"
+# --no-build-isolation is needed for offline build of pyinstaller as per
+#  https://github.com/pyinstaller/pyinstaller/issues/4557
+HOME=$PWD pip3 install --no-cache-dir --no-build-isolation --user $WHEELPKG
+HOME=$PWD pip3 install --no-cache-dir --no-build-isolation --user $PKGS
 
 cd ../%{name}-%{version}
 
-export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
 PYIOPTS="--noconsole --log-level=WARN"
 $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
 # This code was based on code found from
@@ -52,7 +62,7 @@ $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
 cat >dist/editlibs.spec <<!EOF!
 def _should_include_binary(binary_tuple):
     path = binary_tuple[0]
-    if not path.startswith('lib') or path.startswith('lib/'):
+    if not path.startswith('lib') or path.startswith('lib-dynload/'):
         return True
     if path.startswith('libpython') or path.startswith('libffi'):
         return True
@@ -64,11 +74,7 @@ awk '
     {print}
 ' dist/%{name}.spec >dist/%{name}-lesslibs.spec
 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
-# "from M2Crypto import _m2crypto" gets confused without this:
-mkdir -p dist/%{name}/M2Crypto
-cd dist/%{name}/M2Crypto
-ln -s ../_m2crypto* .
-cd -
+
 find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
 
 
@@ -83,13 +89,17 @@ mkdir -p $RPM_BUILD_ROOT%{_datadir}/man/man1
 mkdir -p $RPM_BUILD_ROOT%{_libexecdir}/%{name}
 cp -r dist/%{name} $RPM_BUILD_ROOT%{_libexecdir}
 # somehow through this cp process some files can become non-readable, repair
-find $RPM_BUILD_ROOT%{_libexecdir} ! -perm -400|xargs -rt chmod u+r
+find $RPM_BUILD_ROOT%{_libexecdir} ! -perm -400|xargs -rt chmod a+r
 cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 #!/bin/bash
 exec %{_libexecdir}/%{name}/%{name} "$@"
 !EOF!
 chmod +x $RPM_BUILD_ROOT%{_bindir}/%{name}
 gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
+
+# extend read and execute permissions to all users
+find $RPM_BUILD_ROOT ! -perm -4|xargs -rt chmod a+r
+find $RPM_BUILD_ROOT -perm -100 ! -perm -1|xargs -rt chmod a+x
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -101,13 +111,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Mon Jul 12 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
+* Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option
 - Change the default kerbpath to include issuer and role
 - Limit oidc polling to 2 minutes
 - Disable oidc authenticatio when running in the background, that is, when
     none of stdin, stdout, or stderr are on a tty
 - Document that audience can be a comma or space separated list
+- Updated pip-installed dependent packages to latest versions
 
 * Thu Apr  8 2021 Dave Dykstra <dwd@fnal.gov> 1.2-1
 - Fix working with a kerberos domain that is missing from krb5.conf

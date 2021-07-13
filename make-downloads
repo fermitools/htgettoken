@@ -6,10 +6,15 @@ cd "`dirname $0`"
 rm -rf $BASE-*
 BASE="$BASE-`sed -n 's/^%define downloads_version //p' htgettoken.spec`"
 mkdir $BASE
+# newer pip3 needed for cryptography
+pip3 install -U --no-cache-dir --prefix $PWD/$BASE/.local pip
+PATH=$PWD/$BASE/.local/bin:$PATH
+export PYTHONPATH=`echo $PWD/$BASE/.local/lib/*/site-packages`
 PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
 pip3 $PIPOPTS pyinstaller
 pip3 $PIPOPTS m2crypto
 pip3 $PIPOPTS pyOpenSSL
 pip3 $PIPOPTS kerberos
+pip3 $PIPOPTS wheel
 tar czvf $BASE.tar.gz $BASE
 rm -rf $BASE
