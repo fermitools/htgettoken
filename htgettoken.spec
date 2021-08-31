@@ -1,4 +1,4 @@
-%define downloads_version 1.2
+%define downloads_version 1.3
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
@@ -57,20 +57,11 @@ cd ../%{name}-%{version}
 
 PYIOPTS="--noconsole --log-level=WARN"
 $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
-# This code was based on code found from
-#  https://github.com/pyinstaller/pyinstaller/issues/2732#issuecomment-626325960
-cat >dist/editlibs.spec <<!EOF!
-def _should_include_binary(binary_tuple):
-    path = binary_tuple[0]
-    if not path.startswith('lib') or path.startswith('lib-dynload/'):
-        return True
-    if path.startswith('libpython') or path.startswith('libffi'):
-        return True
-    return False
-a.binaries = list(filter(_should_include_binary, a.binaries))
-!EOF!
+
+# Exclude system libraries from the bundle as documented at
+#  https://pyinstaller.readthedocs.io/en/stable/spec-files.html#posix-specific-options
 awk '
-    {if ($1 == "pyz") system("cat dist/editlibs.spec")}
+    {if ($1 == "pyz") print "a.exclude_system_libraries()"}
     {print}
 ' dist/%{name}.spec >dist/%{name}-lesslibs.spec
 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
@@ -111,6 +102,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+#- Use the new pyinstaller 4.5 exclude_system_libraries() function instead
+#  of the previous hack to exclude system libraries from being bundled.
+
 * Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option
 - Change the default kerbpath to include issuer and role
