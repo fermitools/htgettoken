@@ -104,6 +104,9 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 #- Use the new pyinstaller 4.5 exclude_system_libraries() function instead
 #  of the previous hack to exclude system libraries from being bundled.
+#- Send the extra 'server' parameter recognized by htvault-config >= 1.5
+#  when --secretpath=secret/oauth/creds/%issuer/%credkey:%role, to use
+#  shared vault secrets instance (will be default later).
 
 * Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option

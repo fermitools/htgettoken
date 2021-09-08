@@ -504,6 +504,8 @@ def main():
     parser.add_option("--secretpath",
                       metavar="vaultpath",
                       default="secret/oauth-%issuer/creds/%credkey:%role",
+# New default for htvault-config >= 1.5; then secret server can be always set
+#                     default = "secret/oauth/creds/%issuer/%credkey:%role",
                       help="path in vault for accessing the bearer token secret")
     parser.add_option("--vaulttokenttl",
                       metavar="time",
@@ -596,6 +598,11 @@ def main():
         parseargs(parser, serverargs + envargs + sys.argv[1:])
 
     checkRequiredOptions(parser)
+
+    # remove this when all servers upgraded to htvault-config >= 1.5
+    secret_server = ""
+    if options.secretpath == "secret/oauth/creds/%issuer/%credkey:%role":
+        secret_server = options.issuer
 
     # set implied options
     if options.debug:
@@ -1012,7 +1019,11 @@ def main():
             log("Saving refresh token ...", end='', flush=True)
         url = vaultserver + '/v1/' + fullsecretpath
         headers = {'X-Vault-Token': vaulttoken}
-        data = json.dumps({'refresh_token': refresh_token})
+        storedata = {
+            'server': secret_server,
+            'refresh_token': refresh_token
+        }
+        data = json.dumps(storedata)
         if options.debug:
             log("Refresh token url is", url)
             log("##### Begin refresh token storage data")
