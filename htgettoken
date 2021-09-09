@@ -545,6 +545,10 @@ def main():
                       help="Certifying Authority certificates directory " +
                       '[default: $X509_CERT_DIR or ' +
                       defaults['capath'] + ']')
+    parser.add_option("--web-open-command",
+                      metavar="command",
+                      help="Command to execute to open a URL in a web browser " +
+                      '[default: "xdg-open" unless $SSH_CLIENT is set]')
 
     # Change the default handler for SIGINT from raising a KeyboardInterrupt
     #  (which is ignored by urllib) to SIG_DFL (which exits)
@@ -658,6 +662,16 @@ def main():
         if options.verbose:
             log("Disabling oidc because running in the background")
         options.nooidc = True
+
+    if options.web_open_command is None:
+        sshclient = os.getenv("SSH_CLIENT")
+        if sshclient is None:
+            if sys.platform == 'darwin':
+                options.web_open_command = 'open'
+            else:
+                options.web_open_command = 'xdg-open'
+        else:
+            options.web_open_command = ""
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
@@ -880,35 +894,37 @@ def main():
         if 'user_code' in data:
             log("When prompted, enter code " + data['user_code'])
             del data['user_code']
-        log()
          
-        # Don't use python's webbrowser library; it tries too many things
-        browser = os.getenv("BROWSER")
-        if browser is None:
-            # Avoid the default command-line browsers in xdg-open,
-            #   especially lynx which hangs
-            if os.getenv("DISPLAY") is None:
-                browser = "no-browser"
-            else:
-                # list of common gui browsers copied from el7 xdg-open
-                browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
-            if options.debug:
-                log("Setting BROWSER=" + browser)
-            os.putenv("BROWSER", browser)
-        opencmd = 'xdg-open'
-        cp = None
-        if sys.platform == 'darwin':
-            opencmd = 'open'
-        try:
-            if options.debug:
-                log("Running", opencmd, auth_url)
-            cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
-        except:
-            pass
-        if cp is None or cp.returncode != 0:
-            log("Couldn't open browser with '%s', please open URL manually" % opencmd)
-            log()
+        opencmd = options.web_open_command
+        if opencmd == "":
+            if not options.quiet:
+                log("No web open command defined, please open URL manually")
+        else:
+            # Don't use python's webbrowser library; it tries too many things
+            browser = os.getenv("BROWSER")
+            if browser is None:
+                # Avoid the default command-line browsers in xdg-open,
+                #   especially lynx which hangs
+                if os.getenv("DISPLAY") is None:
+                    browser = "no-browser"
+                else:
+                    # list of common gui browsers copied from el7 xdg-open
+                    browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
+                if options.debug:
+                    log("Setting BROWSER=" + browser)
+                os.putenv("BROWSER", browser)
+            cp = None
+            try:
+                if not options.quiet:
+                    log("Running '%s' on the URL" % opencmd)
+                cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
+            except:
+                pass
+            if cp is None or cp.returncode != 0:
+                log("Couldn't open web browser with '%s', please open URL manually" % opencmd)
 
+        if not options.quiet:
+            log("Waiting for response in web browser")
         pollinterval = 0
         data['client_nonce'] = nonce
         datastr = ''

@@ -107,6 +107,8 @@ rm -rf $RPM_BUILD_ROOT
 #- Send the extra 'server' parameter recognized by htvault-config >= 1.5
 #  when --secretpath=secret/oauth/creds/%issuer/%credkey:%role, to use
 #  shared vault secrets instance (will be default later).
+#- Add --web-open-command option, and default it to xdg-open only when
+#  $SSH_CLIENT is not set.
 
 * Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option

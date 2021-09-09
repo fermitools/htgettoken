@@ -22,11 +22,6 @@ bearer access token and stores that in a file.  A vault token is also
 stored in a file so authentication doesn't have to be redone every time.
 By default the vault token lasts a week.
 
-OIDC authentication URLs are attempted to be launched directly with the
-.B xdg-open
-command, but if that is not successful the user is asked to manually
-copy and paste the URL into a web browser.
-
 .SH OPTIONS
 .PP
 .TP
@@ -267,15 +262,17 @@ The default is $X509_CERT_DIR if it is set, or otherwise the default is
 /etc/grid-security/certificates
 .RE
 .RE
+.TP
+.B \-\-web-open-command=command
+The command to run to open a web URL.  The default is no command if 
+$SSH_CLIENT is set, otherwise the default is 
+.BR xdg-open .
+If no command is defined then the user will be prompted to open the
+URL manually.  See also the BROWSER environment variable below.
 
 .SH "ENVIRONMENT"
 The following optional environment variables affect the operation of
 .BR htgettoken .
-.TP
-.B "HTGETTOKENOPTS"
-Default options.  These options override any conflicting options from
-the optserver, but are overridden by any conflicting options from the
-command line.
 .TP
 .B "BEARER_TOKEN_FILE"
 Default location for the bearer token on the local disk.
@@ -283,26 +280,37 @@ For more details see the
 .I \-\-outfile
 option.
 .TP
+.B "BROWSER"
+Colon-separated list of web browsers that
+.B xdg-open
+will attempt to invoke if it is the selected web open command. 
+The default is no browser if the DISPLAY
+environment variable is not set; otherwise, the default is a list of
+common web browsers as defined by the xdg-open command, excluding
+those that are command-line only.
+.TP
+.B "HTGETTOKENOPTS"
+Default options.  These options override any conflicting options from
+the optserver, but are overridden by any conflicting options from the
+command line.
+.TP
+.B "KRB5CCNAME"
+Location of a kerberos 5 credentials (ticket) cache.
+.TP "SSH_CLIENT"
+If set, there is no default web open command.  If not set, the default
+web open command is 
+.BR xdg-open .
+.TP
 .B "XDG_RUNTIME_DIR"
 Default directory for the bearer token if $BEARER_TOKEN_FILE is not set.
 For more details see the
 .I \-\-outfile
 option.
 .TP
-.B "BROWSER"
-Colon-separated list of web browsers that
-.B xdg-open
-will attempt to invoke.  The default is no browser if the DISPLAY
-environment variable is not set; otherwise, the default is a list of
-common web browsers as defined by the xdg-open command.
-.TP
 .B "X509_CERT_DIR"
 Default directory for CA certificates.  See also the
 .I \-\-capath
 option.
-.TP
-.B "KRB5CCNAME"
-Location of a kerberos 5 credentials (ticket) cache.
 
 
 .SH EXAMPLES
