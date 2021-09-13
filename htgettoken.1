@@ -162,6 +162,15 @@ number followed by 's' for seconds, 'm' for minutes, 'h' for hours,
 or 'd' for days.  The maximum is determined by the vault configuration
 which is typically '28d'.  The default is '7d'.
 .TP
+.B \-\-vaulttokenminttl=time
+The minimum allowed time remaining in the lifetime of an existing vault
+token before it expires.  If there is not enough time remaining it will
+not be reused and a new one will be obtained instead.  The time is a
+number followed by 's' for seconds, 'm' for minutes, 'h' for hours,
+or 'd' for days.  Must be less than the value of
+.IR \-\-vaulttokenttl .
+The default is no minimum.
+.TP
 .BR \-\-vaulttokenfile=path
 The path to save vault tokens.  If the value of
 .I \-\-vaultokenttl

@@ -347,6 +347,40 @@ def getVaultToken(opener, vaultserver, vaulttokensecs, response):
         return response['auth']['client_token']
     fatal("no vault token in response from %s" % url)
 
+# Check for a minimum number of seconds remaining in vault token
+# Return True if there's enough time remaining, else False
+def checkVaultMinsecs(opener, vaultserver, vaulttoken, vaulttokenminsecs):
+    # Look up info about the vault token
+    url = vaultserver + '/v1/' + 'auth/token/lookup-self'
+    if options.debug:
+        log("Reading from", url)
+    headers = {'X-Vault-Token': vaulttoken}
+    request = urllib_request.Request(url=url, headers=headers)
+    handle = None
+    try:
+        handle = opener.open(request)
+    except Exception as e:
+        elog("Looking up vault token at %s failed" % url, e)
+        return False
+    body = handle.read()
+    if options.debug:
+        log("##### Begin vault lookup-self response")
+        log(body)
+        log("##### End vault lookup-self response")
+    try:
+        response = json.loads(body)
+    except Exception as e:
+        efatal("decoding response from %s failed" % url, e)
+    if 'data' not in response or 'ttl' not in response['data']:
+        fatal("ttl missing from lookup-self response")
+
+    ttl = response['data']['ttl']
+    if options.verbose:
+        log("  " + str(ttl) + " seconds remaining")
+    if vaulttokenminsecs <= ttl:
+        return True
+    return False
+
 # Read a bearer token from vault
 def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
     if options.showbearerurl:
@@ -444,6 +478,25 @@ def writeTokenSafely(tokentype, token, outfile):
                 pass
             efatal("failure renaming " + path + " to " + outfile, e)
     
+# convert a time to live with trailing unit character into seconds
+def ttl2secs(ttl, msg):
+    # calculate ttl in seconds
+    lastchr = ttl[-1:]
+    numpart = ttl[0:-1]
+    failmsg = msg + " is not a number followed by s, m, h, or d"
+    if not numpart.isnumeric():
+        fatal(failmsg)
+    secs = int(numpart)
+    if lastchr == 'd':
+        secs *= 24
+        lastchr = 'h'
+    if lastchr == 'h':
+        secs *= 60*60
+    elif lastchr == 'm':
+        secs *= 60
+    elif lastchr != 's':
+        fatal(failmsg)
+    return secs
 
 ### htgettoken main ####
 def main():
@@ -511,6 +564,9 @@ def main():
                       metavar="time",
                       default="7d",
                       help="time (s, m, h, or d suffix) for new vault token to live")
+    parser.add_option("--vaulttokenminttl",
+                      metavar="seconds",
+                      help="minimum time (s, m, h or d suffix) left in exisiting vault token before expiration")
     parser.add_option("--vaulttokenfile",
                       metavar="path",
                       help="path to save vault token [default /tmp/vt_u%uid if vaulttokenttl less than 1 million seconds, else /dev/stdout]")
@@ -530,7 +586,7 @@ def main():
                         "[default: $BEARER_TOKEN_FILE or $XDG_RUNTIME_DIR/bt_u%uid]")
     parser.add_option("--minsecs",
                       type="int", metavar="seconds", default=60,
-                      help="minimum number of seconds in bearer token to reuse")
+                      help="minimum number of seconds left in bearer token before expiration")
     parser.add_option("--scopes",
                       metavar="scopes",
                       help="reduced list of scopes for token")
@@ -615,24 +671,16 @@ def main():
     if not options.quiet and not options.verbose:
         showprogress = True
 
-    # calculate vault token ttl in seconds
-    lastchr = options.vaulttokenttl[-1:]
-    numpart = options.vaulttokenttl[0:-1]
-    failmsg = "--vaulttokenttl is not a number followed by s, m, h, or d"
-    if not numpart.isnumeric():
-        fatal(failmsg)
-    vaulttokensecs = int(numpart)
-    if lastchr == 'd':
-        vaulttokensecs *= 24
-        # vault only goes up to hours
-        options.vaulttokenttl = str(vaulttokensecs) + 'h'
-        lastchr = 'h'
-    if lastchr == 'h':
-        vaulttokensecs *= 60*60
-    elif lastchr == 'm':
-        vaulttokensecs *= 60
-    elif lastchr != 's':
-        fatal(failmsg)
+    # calculate vault token ttl and minttl in seconds
+    vaulttokensecs = ttl2secs(options.vaulttokenttl, "--vaulttokenttl")
+    # vault doesn't support the 'd' suffix to 'ttl' so always set it in seconds
+    options.vaulttokenttl = str(vaulttokensecs) + 's'
+
+    vaulttokenminsecs = 0
+    if options.vaulttokenminttl is not None:
+        vaulttokenminsecs = ttl2secs(options.vaulttokenminttl, "--vaulttokenminttl")
+        if vaulttokenminsecs >= vaulttokensecs:
+            fatal("--vaulttokenminttl must be less than --vaulttokenttl")
 
     # calculate defaults for options that are too complex for "default" keyword
     if options.outfile is None:
@@ -747,6 +795,7 @@ def main():
                 if options.debug:
                     elog("Could not load " + vaulttokeninfile, e)
             else:
+                tryget = True
                 if isDevFile(options.vaulttokeninfile):
                     # The incoming vault token location is coming from /dev,
                     #  so first try to exchange it for one with a duration
@@ -760,13 +809,20 @@ def main():
                     vaulttoken = getVaultToken(opener, vaultserver, 
                                                 vaulttokensecs, response)
                     writeTokenSafely("vault", vaulttoken, vaulttokenfile)
-            
-                if options.verbose and not options.nobearertoken:
-                    log("Attempting to get bearer token from", vaultserver)
-                    log("  using vault token from", vaulttokeninfile)
+                elif vaulttokenminsecs > 0:
+                    if options.verbose:
+                        log("Making sure there is at least " + str(vaulttokenminsecs) + " seconds remaining")
+                        log("  in vault token from", vaulttokeninfile)
 
-                bearertoken = getBearerToken(opener, vaultserver,
-                                            vaulttoken, fullsecretpath)
+                    tryget = checkVaultMinsecs(opener, vaultserver, vaulttoken, vaulttokenminsecs)
+            
+                if tryget:
+                    if options.verbose and not options.nobearertoken:
+                        log("Attempting to get bearer token from", vaultserver)
+                        log("  using vault token from", vaulttokeninfile)
+
+                    bearertoken = getBearerToken(opener, vaultserver,
+                                                vaulttoken, fullsecretpath)
             
         if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
