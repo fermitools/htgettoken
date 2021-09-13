@@ -17,7 +17,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.3"
+version = "1.4"
 
 import os
 import sys
@@ -347,6 +347,40 @@ def getVaultToken(opener, vaultserver, vaulttokensecs, response):
         return response['auth']['client_token']
     fatal("no vault token in response from %s" % url)
 
+# Check for a minimum number of seconds remaining in vault token
+# Return True if there's enough time remaining, else False
+def checkVaultMinsecs(opener, vaultserver, vaulttoken, vaulttokenminsecs):
+    # Look up info about the vault token
+    url = vaultserver + '/v1/' + 'auth/token/lookup-self'
+    if options.debug:
+        log("Reading from", url)
+    headers = {'X-Vault-Token': vaulttoken}
+    request = urllib_request.Request(url=url, headers=headers)
+    handle = None
+    try:
+        handle = opener.open(request)
+    except Exception as e:
+        elog("Looking up vault token at %s failed" % url, e)
+        return False
+    body = handle.read()
+    if options.debug:
+        log("##### Begin vault lookup-self response")
+        log(body)
+        log("##### End vault lookup-self response")
+    try:
+        response = json.loads(body)
+    except Exception as e:
+        efatal("decoding response from %s failed" % url, e)
+    if 'data' not in response or 'ttl' not in response['data']:
+        fatal("ttl missing from lookup-self response")
+
+    ttl = response['data']['ttl']
+    if options.verbose:
+        log("  " + str(ttl) + " seconds remaining")
+    if vaulttokenminsecs <= ttl:
+        return True
+    return False
+
 # Read a bearer token from vault
 def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
     if options.showbearerurl:
@@ -444,6 +478,25 @@ def writeTokenSafely(tokentype, token, outfile):
                 pass
             efatal("failure renaming " + path + " to " + outfile, e)
     
+# convert a time to live with trailing unit character into seconds
+def ttl2secs(ttl, msg):
+    # calculate ttl in seconds
+    lastchr = ttl[-1:]
+    numpart = ttl[0:-1]
+    failmsg = msg + " is not a number followed by s, m, h, or d"
+    if not numpart.isnumeric():
+        fatal(failmsg)
+    secs = int(numpart)
+    if lastchr == 'd':
+        secs *= 24
+        lastchr = 'h'
+    if lastchr == 'h':
+        secs *= 60*60
+    elif lastchr == 'm':
+        secs *= 60
+    elif lastchr != 's':
+        fatal(failmsg)
+    return secs
 
 ### htgettoken main ####
 def main():
@@ -504,11 +557,16 @@ def main():
     parser.add_option("--secretpath",
                       metavar="vaultpath",
                       default="secret/oauth-%issuer/creds/%credkey:%role",
+# New default for htvault-config >= 1.5; then secret server can be always set
+#                     default = "secret/oauth/creds/%issuer/%credkey:%role",
                       help="path in vault for accessing the bearer token secret")
     parser.add_option("--vaulttokenttl",
                       metavar="time",
                       default="7d",
                       help="time (s, m, h, or d suffix) for new vault token to live")
+    parser.add_option("--vaulttokenminttl",
+                      metavar="seconds",
+                      help="minimum time (s, m, h or d suffix) left in exisiting vault token before expiration")
     parser.add_option("--vaulttokenfile",
                       metavar="path",
                       help="path to save vault token [default /tmp/vt_u%uid if vaulttokenttl less than 1 million seconds, else /dev/stdout]")
@@ -528,7 +586,7 @@ def main():
                         "[default: $BEARER_TOKEN_FILE or $XDG_RUNTIME_DIR/bt_u%uid]")
     parser.add_option("--minsecs",
                       type="int", metavar="seconds", default=60,
-                      help="minimum number of seconds in bearer token to reuse")
+                      help="minimum number of seconds left in bearer token before expiration")
     parser.add_option("--scopes",
                       metavar="scopes",
                       help="reduced list of scopes for token")
@@ -543,6 +601,10 @@ def main():
                       help="Certifying Authority certificates directory " +
                       '[default: $X509_CERT_DIR or ' +
                       defaults['capath'] + ']')
+    parser.add_option("--web-open-command",
+                      metavar="command",
+                      help="Command to execute to open a URL in a web browser " +
+                      '[default: "xdg-open" unless $SSH_CLIENT is set]')
 
     # Change the default handler for SIGINT from raising a KeyboardInterrupt
     #  (which is ignored by urllib) to SIG_DFL (which exits)
@@ -597,6 +659,11 @@ def main():
 
     checkRequiredOptions(parser)
 
+    # remove this when all servers upgraded to htvault-config >= 1.5
+    secret_server = ""
+    if options.secretpath == "secret/oauth/creds/%issuer/%credkey:%role":
+        secret_server = options.issuer
+
     # set implied options
     if options.debug:
         options.verbose = True
@@ -604,24 +671,16 @@ def main():
     if not options.quiet and not options.verbose:
         showprogress = True
 
-    # calculate vault token ttl in seconds
-    lastchr = options.vaulttokenttl[-1:]
-    numpart = options.vaulttokenttl[0:-1]
-    failmsg = "--vaulttokenttl is not a number followed by s, m, h, or d"
-    if not numpart.isnumeric():
-        fatal(failmsg)
-    vaulttokensecs = int(numpart)
-    if lastchr == 'd':
-        vaulttokensecs *= 24
-        # vault only goes up to hours
-        options.vaulttokenttl = str(vaulttokensecs) + 'h'
-        lastchr = 'h'
-    if lastchr == 'h':
-        vaulttokensecs *= 60*60
-    elif lastchr == 'm':
-        vaulttokensecs *= 60
-    elif lastchr != 's':
-        fatal(failmsg)
+    # calculate vault token ttl and minttl in seconds
+    vaulttokensecs = ttl2secs(options.vaulttokenttl, "--vaulttokenttl")
+    # vault doesn't support the 'd' suffix to 'ttl' so always set it in seconds
+    options.vaulttokenttl = str(vaulttokensecs) + 's'
+
+    vaulttokenminsecs = 0
+    if options.vaulttokenminttl is not None:
+        vaulttokenminsecs = ttl2secs(options.vaulttokenminttl, "--vaulttokenminttl")
+        if vaulttokenminsecs >= vaulttokensecs:
+            fatal("--vaulttokenminttl must be less than --vaulttokenttl")
 
     # calculate defaults for options that are too complex for "default" keyword
     if options.outfile is None:
@@ -651,6 +710,16 @@ def main():
         if options.verbose:
             log("Disabling oidc because running in the background")
         options.nooidc = True
+
+    if options.web_open_command is None:
+        sshclient = os.getenv("SSH_CLIENT")
+        if sshclient is None:
+            if sys.platform == 'darwin':
+                options.web_open_command = 'open'
+            else:
+                options.web_open_command = 'xdg-open'
+        else:
+            options.web_open_command = ""
 
     # Get and parse the vaultserver URL
     vaultserver = options.vaultserver
@@ -726,6 +795,7 @@ def main():
                 if options.debug:
                     elog("Could not load " + vaulttokeninfile, e)
             else:
+                tryget = True
                 if isDevFile(options.vaulttokeninfile):
                     # The incoming vault token location is coming from /dev,
                     #  so first try to exchange it for one with a duration
@@ -739,13 +809,20 @@ def main():
                     vaulttoken = getVaultToken(opener, vaultserver, 
                                                 vaulttokensecs, response)
                     writeTokenSafely("vault", vaulttoken, vaulttokenfile)
-            
-                if options.verbose and not options.nobearertoken:
-                    log("Attempting to get bearer token from", vaultserver)
-                    log("  using vault token from", vaulttokeninfile)
+                elif vaulttokenminsecs > 0:
+                    if options.verbose:
+                        log("Making sure there is at least " + str(vaulttokenminsecs) + " seconds remaining")
+                        log("  in vault token from", vaulttokeninfile)
 
-                bearertoken = getBearerToken(opener, vaultserver,
-                                            vaulttoken, fullsecretpath)
+                    tryget = checkVaultMinsecs(opener, vaultserver, vaulttoken, vaulttokenminsecs)
+            
+                if tryget:
+                    if options.verbose and not options.nobearertoken:
+                        log("Attempting to get bearer token from", vaultserver)
+                        log("  using vault token from", vaulttokeninfile)
+
+                    bearertoken = getBearerToken(opener, vaultserver,
+                                                vaulttoken, fullsecretpath)
             
         if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
@@ -873,35 +950,37 @@ def main():
         if 'user_code' in data:
             log("When prompted, enter code " + data['user_code'])
             del data['user_code']
-        log()
          
-        # Don't use python's webbrowser library; it tries too many things
-        browser = os.getenv("BROWSER")
-        if browser is None:
-            # Avoid the default command-line browsers in xdg-open,
-            #   especially lynx which hangs
-            if os.getenv("DISPLAY") is None:
-                browser = "no-browser"
-            else:
-                # list of common gui browsers copied from el7 xdg-open
-                browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
-            if options.debug:
-                log("Setting BROWSER=" + browser)
-            os.putenv("BROWSER", browser)
-        opencmd = 'xdg-open'
-        cp = None
-        if sys.platform == 'darwin':
-            opencmd = 'open'
-        try:
-            if options.debug:
-                log("Running", opencmd, auth_url)
-            cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
-        except:
-            pass
-        if cp is None or cp.returncode != 0:
-            log("Couldn't open browser with '%s', please open URL manually" % opencmd)
-            log()
+        opencmd = options.web_open_command
+        if opencmd == "":
+            if not options.quiet:
+                log("No web open command defined, please open URL manually")
+        else:
+            # Don't use python's webbrowser library; it tries too many things
+            browser = os.getenv("BROWSER")
+            if browser is None:
+                # Avoid the default command-line browsers in xdg-open,
+                #   especially lynx which hangs
+                if os.getenv("DISPLAY") is None:
+                    browser = "no-browser"
+                else:
+                    # list of common gui browsers copied from el7 xdg-open
+                    browser = "x-www-browser:firefox:seamonkey:mozilla:epiphany:konqueror:chromium-browser:google-chrome"
+                if options.debug:
+                    log("Setting BROWSER=" + browser)
+                os.putenv("BROWSER", browser)
+            cp = None
+            try:
+                if not options.quiet:
+                    log("Running '%s' on the URL" % opencmd)
+                cp = subprocess.run([opencmd, auth_url], stderr=subprocess.DEVNULL)
+            except:
+                pass
+            if cp is None or cp.returncode != 0:
+                log("Couldn't open web browser with '%s', please open URL manually" % opencmd)
 
+        if not options.quiet:
+            log("Waiting for response in web browser")
         pollinterval = 0
         data['client_nonce'] = nonce
         datastr = ''
@@ -1012,7 +1091,11 @@ def main():
             log("Saving refresh token ...", end='', flush=True)
         url = vaultserver + '/v1/' + fullsecretpath
         headers = {'X-Vault-Token': vaulttoken}
-        data = json.dumps({'refresh_token': refresh_token})
+        storedata = {
+            'server': secret_server,
+            'refresh_token': refresh_token
+        }
+        data = json.dumps(storedata)
         if options.debug:
             log("Refresh token url is", url)
             log("##### Begin refresh token storage data")

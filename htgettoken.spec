@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.3
+Version: 1.4
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -102,8 +102,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-#- Use the new pyinstaller 4.5 exclude_system_libraries() function instead
-#  of the previous hack to exclude system libraries from being bundled.
+* Mon Sep 13 2021 Dave Dykstra <dwd@fnal.gov> 1.4-1
+- Add --vaulttokenminttl option.
+- Add --web-open-command option, and default it to xdg-open only when
+  $SSH_CLIENT is not set.
+- Send the extra 'server' parameter recognized by htvault-config >= 1.5
+  when --secretpath=secret/oauth/creds/%issuer/%credkey:%role, to use
+  shared vault secrets instance (will be default later).
+- Use the new pyinstaller 4.5 exclude_system_libraries() function instead
+  of the previous hack to exclude system libraries from being bundled.
 
 * Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option
