@@ -27,3 +27,11 @@ submitted to
 [vCHEP 2021](https://indico.cern.ch/event/948465/)
 for a description of htgettoken, htvault-config, and their HTCondor
 integration.
+
+## httokendecode
+
+An additional small script called `httokendecode` is bundled with
+`htgettoken`.  It decodes JSON Web Tokens that it finds either according
+to a given filename (`-` for stdin) or based on the
+[WLCG Bearer Token Discovery](https://zenodo.org/record/3937438#.YUDw7aBOlTY)
+standard if no filename is given.
