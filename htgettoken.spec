@@ -85,7 +85,8 @@ cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 #!/bin/bash
 exec %{_libexecdir}/%{name}/%{name} "$@"
 !EOF!
-chmod +x $RPM_BUILD_ROOT%{_bindir}/%{name}
+cp httokendecode $RPM_BUILD_ROOT%{_bindir}
+chmod +x $RPM_BUILD_ROOT%{_bindir}/*
 gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
 
 # extend read and execute permissions to all users
@@ -96,12 +97,14 @@ find $RPM_BUILD_ROOT -perm -100 ! -perm -1|xargs -rt chmod a+x
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%{_bindir}/%{name}
+%{_bindir}/*
 %{_libexecdir}/%{name}
 %{_datadir}/man/man1/%{name}*
 
 
 %changelog
+# - Add httokendecode command.
+
 * Mon Sep 13 2021 Dave Dykstra <dwd@fnal.gov> 1.4-1
 - Add --vaulttokenminttl option.
 - Add --web-open-command option, and default it to xdg-open only when
