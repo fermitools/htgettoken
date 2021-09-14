@@ -1,5 +1,5 @@
 <!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Wed Dec 30 13:39:47 2020 -->
+<!-- CreationDate: Tue Sep 14 10:34:22 2021 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -74,12 +74,6 @@ access token and stores that in a file. A vault token is
 also stored in a file so authentication doesn&rsquo;t have
 to be redone every time. By default the vault token lasts a
 week.</p>
-
-<p style="margin-left:11%; margin-top: 1em">OIDC
-authentication URLs are attempted to be launched directly
-with the <b>xdg-open</b> command, but if that is not
-successful the user is asked to manually copy and paste the
-URL into a web browser.</p>
 
 <h2>OPTIONS
 <a name="OPTIONS"></a>
@@ -186,7 +180,19 @@ authentication.</p>
 <p style="margin-left:22%;">The path in vault for kerberos
 authentication. The default is</p>
 
-<p style="margin-left:32%;">auth/kerberos/login &nbsp;</p>
+
+<p style="margin-left:32%;">auth/kerberos-%issuer_%role/login</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;kerbprincipal=principal</b></p>
+
+<p style="margin-left:22%;">Principal to use for kerberos
+authentication. The principal has to be among those cached
+on the current machine when a cache collection is available,
+for example when $KRB5CCNAME begins with &quot;DIR:&quot;.
+The default is the currently selected principal. See the
+<b>kswitch</b> command and the &quot;-l&quot; option of the
+<b>klist</b> command for more information. &nbsp;</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;nooidc</b></p>
@@ -250,6 +256,19 @@ live before they expire. The time is a number followed by
 maximum is determined by the vault configuration which is
 typically &rsquo;28d&rsquo;. The default is
 &rsquo;7d&rsquo;.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;vaulttokenminttl=time</b></p>
+
+<p style="margin-left:22%;">The minimum allowed time
+remaining in the lifetime of an existing vault token before
+it expires. If there is not enough time remaining it will
+not be reused and a new one will be obtained instead. The
+time is a number followed by &rsquo;s&rsquo; for seconds,
+&rsquo;m&rsquo; for minutes, &rsquo;h&rsquo; for hours, or
+&rsquo;d&rsquo; for days. Must be less than the value of
+<i>&minus;&minus;vaulttokenttl</i>. The default is no
+minimum.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;vaulttokenfile=path</b></p>
@@ -329,9 +348,9 @@ enough time for a token to still be usable. The default is
 
 <p style="margin-left:11%;"><b>&minus;&minus;scopes=scopes</b></p>
 
-<p style="margin-left:22%;">A comma-separated list of
-scopes to request for a bearer token. This should be a
-subset of the scopes that come by default in the token. It
+<p style="margin-left:22%;">A comma- or space-separated
+list of scopes to request for a bearer token. This should be
+a subset of the scopes that come by default in the token. It
 uses token exchange with the token issuer, and the result is
 not cached in vault; instead, vault exchanges the cached
 token for the new one.</p>
@@ -339,9 +358,10 @@ token for the new one.</p>
 
 <p style="margin-left:11%;"><b>&minus;&minus;audience=audience</b></p>
 
-<p style="margin-left:22%;">A more restricted audience for
-the token. Like the <i>&minus;&minus;scopes</i> option, this
-uses token exchange with the token issuer.</p>
+<p style="margin-left:22%;">A comma- or space-separated
+list of more restricted audiences for the token. Like the
+<i>&minus;&minus;scopes</i> option, this uses token exchange
+with the token issuer.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;cafile=file</b></p>
@@ -372,6 +392,16 @@ default is</p>
 
 <p style="margin-left:32%;">/etc/grid-security/certificates</p>
 
+
+<p style="margin-left:11%;"><b>&minus;&minus;web-open-command=command</b></p>
+
+<p style="margin-left:22%;">The command to run to open a
+web URL. The default is no command if $SSH_CLIENT is set,
+otherwise the default is <b>xdg-open</b>. If no command is
+defined then the user will be prompted to open the URL
+manually. See also the BROWSER environment variable
+below.</p>
+
 <h2>ENVIRONMENT
 <a name="ENVIRONMENT"></a>
 </h2>
@@ -380,18 +410,39 @@ default is</p>
 <p style="margin-left:11%; margin-top: 1em">The following
 optional environment variables affect the operation of
 <b>htgettoken</b>. <b><br>
-HTGETTOKENOPTS</b></p>
+BEARER_TOKEN_FILE</b></p>
+
+<p style="margin-left:22%;">Default location for the bearer
+token on the local disk. For more details see the
+<i>&minus;&minus;outfile</i> option.</p>
+
+<p style="margin-left:11%;"><b>BROWSER</b></p>
+
+<p style="margin-left:22%;">Colon-separated list of web
+browsers that <b>xdg-open</b> will attempt to invoke if it
+is the selected web open command. The default is no browser
+if the DISPLAY environment variable is not set; otherwise,
+the default is a list of common web browsers as defined by
+the xdg-open command, excluding those that are command-line
+only.</p>
+
+<p style="margin-left:11%;"><b>HTGETTOKENOPTS</b></p>
 
 <p style="margin-left:22%;">Default options. These options
 override any conflicting options from the optserver, but are
 overridden by any conflicting options from the command
 line.</p>
 
-<p style="margin-left:11%;"><b>BEARER_TOKEN_FILE</b></p>
+<p style="margin-left:11%;"><b>KRB5CCNAME</b></p>
 
-<p style="margin-left:22%;">Default location for the bearer
-token on the local disk. For more details see the
-<i>&minus;&minus;outfile</i> option.</p>
+<p style="margin-left:22%;">Location of a kerberos 5
+credentials (ticket) cache.</p>
+
+<p style="margin-left:11%;"><b>SSH_CLIENT</b></p>
+
+<p style="margin-left:22%;">If set, there is no default web
+open command. If not set, the default web open command is
+<b>xdg-open</b>.</p>
 
 <p style="margin-left:11%;"><b>XDG_RUNTIME_DIR</b></p>
 
@@ -399,24 +450,11 @@ token on the local disk. For more details see the
 bearer token if $BEARER_TOKEN_FILE is not set. For more
 details see the <i>&minus;&minus;outfile</i> option.</p>
 
-<p style="margin-left:11%;"><b>BROWSER</b></p>
-
-<p style="margin-left:22%;">Colon-separated list of web
-browsers that <b>xdg-open</b> will attempt to invoke. The
-default is no browser if the DISPLAY environment variable is
-not set; otherwise, the default is a list of common web
-browsers as defined by the xdg-open command.</p>
-
 <p style="margin-left:11%;"><b>X509_CERT_DIR</b></p>
 
 <p style="margin-left:22%;">Default directory for CA
 certificates. See also the <i>&minus;&minus;capath</i>
 option.</p>
-
-<p style="margin-left:11%;"><b>KRB5CCNAME</b></p>
-
-<p style="margin-left:22%;">Location of a kerberos 5
-credentials (ticket) cache.</p>
 
 <h2>EXAMPLES
 <a name="EXAMPLES"></a>
