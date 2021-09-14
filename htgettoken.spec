@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.4
+Version: 1.5
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -85,7 +85,8 @@ cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 #!/bin/bash
 exec %{_libexecdir}/%{name}/%{name} "$@"
 !EOF!
-chmod +x $RPM_BUILD_ROOT%{_bindir}/%{name}
+cp httokendecode $RPM_BUILD_ROOT%{_bindir}
+chmod +x $RPM_BUILD_ROOT%{_bindir}/*
 gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
 
 # extend read and execute permissions to all users
@@ -96,21 +97,25 @@ find $RPM_BUILD_ROOT -perm -100 ! -perm -1|xargs -rt chmod a+x
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%{_bindir}/%{name}
+%{_bindir}/*
 %{_libexecdir}/%{name}
 %{_datadir}/man/man1/%{name}*
 
 
 %changelog
+* Tue Sep 14 2021 Dave Dykstra <dwd@fnal.gov> 1.5-1
+- Add httokendecode command
+- Add RELEASE_PROCEDURE file
+
 * Mon Sep 13 2021 Dave Dykstra <dwd@fnal.gov> 1.4-1
-- Add --vaulttokenminttl option.
+- Add --vaulttokenminttl option
 - Add --web-open-command option, and default it to xdg-open only when
-  $SSH_CLIENT is not set.
+  $SSH_CLIENT is not set
 - Send the extra 'server' parameter recognized by htvault-config >= 1.5
   when --secretpath=secret/oauth/creds/%issuer/%credkey:%role, to use
-  shared vault secrets instance (will be default later).
+  shared vault secrets instance (will be default later)
 - Use the new pyinstaller 4.5 exclude_system_libraries() function instead
-  of the previous hack to exclude system libraries from being bundled.
+  of the previous hack to exclude system libraries from being bundled
 
 * Tue Jul 13 2021 Dave Dykstra <dwd@fnal.gov> 1.3-1
 - Add --kerbprincipal option

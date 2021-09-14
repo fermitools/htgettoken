@@ -1,0 +1,69 @@
+#!/bin/bash
+# Based on
+#   https://gist.github.com/thomasdarimont/46358bc8167fce059d83a1ebdb92b0e7
+# Modified to understand WLCG Bearer Token Discovery and to have an option
+#  to print the algorithm in the first part of the token
+
+usage()
+{
+    echo 'Usage: httokendecode [-a] [file]'
+    echo
+    echo 'Decodes a JSON Web Token'
+    echo '  -a: show algorithm portion of JWT'
+    echo 'File name may be "-" to read from stdin.'
+    echo 'If file name not given, follows WLCG Bearer Token Discovery'
+    echo '  which is to first try $BEARER_TOKEN, next $BEARER_TOKEN_FILE,'
+    echo '  and next ${XDG_RUNTIME_DIR:-/tmp}/bt_u`id -u`.'
+    exit 1
+} >&2
+
+set -e
+SHOWALG=false
+if [ "$1" = "-a" ]; then
+    SHOWALG=true
+    shift
+elif [[ "$1" == -?* ]]; then
+    usage
+fi
+TOKEN=""
+TOKENFILE=""
+if [ $# = 0 ]; then
+    if [ -n "$BEARER_TOKEN" ]; then
+        TOKEN="$BEARER_TOKEN"
+    else
+        TOKENFILE="${BEARER_TOKEN_FILE:-${XDG_RUNTIME_DIR:-/tmp}/bt_u`id -u`}"
+    fi
+elif [ $# = 1 ]; then
+    if [ "$1" = - ]; then
+        read TOKEN # from stdin
+    else
+        TOKENFILE="$1"
+    fi
+else
+    usage
+fi
+if [ -n "$TOKENFILE" ]; then
+    if [ ! -e "$TOKENFILE" ]; then
+        echo "$TOKENFILE not found" 
+        exit 1
+    fi
+    read TOKEN <$TOKENFILE
+fi
+if [ -z "$TOKEN" ]; then
+    echo "Token is empty" >&2
+    usage
+fi
+
+decode_base64_url() {
+  local len=$((${#1} % 4))
+  local result="$1"
+  if [ $len -eq 2 ]; then result="$1"'=='
+  elif [ $len -eq 3 ]; then result="$1"'=' 
+  fi
+  echo "$result" | tr '_-' '/+' | base64 -d
+}
+
+if $SHOWALG; then
+    decode_base64_url "`echo "$TOKEN"|cut -d. -f1`" | jq .
+fi
+decode_base64_url "`echo "$TOKEN"|cut -d. -f2`" | jq .
