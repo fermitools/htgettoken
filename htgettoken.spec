@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.5
+Version: 1.6
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -103,6 +103,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
+- Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.
+  This can happen when the SSL_CERT_FILE environment variable is empty.
+
 * Tue Sep 14 2021 Dave Dykstra <dwd@fnal.gov> 1.5-1
 - Add httokendecode command
 - Add RELEASE_PROCEDURE file
