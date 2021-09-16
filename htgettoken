@@ -55,10 +55,16 @@ from OpenSSL import crypto
 _paths = ssl.get_default_verify_paths()
 _default_cafile = _paths.cafile or ''
 if _default_cafile == '':
-    # workaround debian bug
-    _try_cafile = '/etc/ssl/certs/ca-certificates.crt'
+    # can happen if someone sets SSL_CERT_FILE=""
+    # try first the RHEL default path
+    _try_cafile = '/etc/pki/tls/cert.pem'
     if os.path.isfile(_try_cafile):
         _default_cafile = _try_cafile
+    else:
+        # debian can have this even without SSL_CERT_FILE="", try its default
+        _try_cafile = '/etc/ssl/certs/ca-certificates.crt'
+        if os.path.isfile(_try_cafile):
+            _default_cafile = _try_cafile
 # prefer grid-security default capath
 _default_capath = "/etc/grid-security/certificates"
 if _paths.capath and not os.path.isdir(_default_capath):
