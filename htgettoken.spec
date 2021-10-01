@@ -103,6 +103,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# Expand the --vaultalias option to also additionally allow that name
+#  in vault's host certificate.
+
 * Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
 - Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.
   This can happen when the SSL_CERT_FILE environment variable is empty.
