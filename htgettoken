@@ -79,6 +79,7 @@ defaults = {
 options = None
 showprogress = False
 logfile = sys.stderr
+vaulthostname = None
 
 # print wrapper.  print to logfile.
 # based on https://stackoverflow.com/a/26286311
@@ -176,7 +177,8 @@ class _SslSocketWrapper(object):
 # although that is a RHEL7-specific feature and may not solve the problem
 # everywhere we want to use htgettoken.  Perhaps instead I should just
 # depend on always using python3.  If I do switch it to use the standard
-# HTTPSConnection class, remember to test what happens with timeouts.
+# HTTPSConnection class, remember to test what happens with timeouts and
+# find an alternative to the vaulthostname override from --vaultalias.
 # 
 class CertValidatingHTTPSConnection(http_client.HTTPConnection):
     default_port = http_client.HTTPS_PORT
@@ -242,7 +244,13 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         timeout = SSL.timeout(self.ssl_timeout)
         sslconn.set_socket_read_timeout(timeout)
         sslconn.set_socket_write_timeout(timeout)
-        sslconn.connect((self.host, self.port))
+        try:
+            sslconn.connect((self.host, self.port))
+        except SSL.Checker.WrongHost as e:
+            if vaulthostname is None or 'DNS:'+vaulthostname+',' not in e.actualHost+',':
+                e.expectedHost = e.expectedHost + ' or ' + vaulthostname
+                raise e
+
         self.sock = _SslSocketWrapper(sslconn)
 
 # One API call requires reading the body of a 400 error, so to enable
@@ -749,6 +757,9 @@ def main():
         if ':' not in vaultaliasparts[2]:
             vaultalias = vaultalias + ':8200'
 
+    global vaulthostname
+    vaulthostname = vaultaliasparts[2].split(':')[0]
+
     secretpath = options.secretpath.replace("%issuer", options.issuer)
     secretpath = secretpath.replace("%role", options.role)
     vaulttokenfile = options.vaulttokenfile.replace("%uid", str(os.geteuid()))
@@ -832,7 +843,7 @@ def main():
             
         if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
-            service = "host@" + vaultaliasparts[2].split(':')[0]
+            service = "host@" + vaulthostname
             if options.verbose:
                 log("Initializing kerberos client for", service)
             elif showprogress:
