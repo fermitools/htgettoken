@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 #
 # htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 #
@@ -291,6 +291,20 @@ class VerifiedHTTPSHandler(urllib_request.HTTPSHandler):
             return fp
         raise HTTPError(request.get_full_url(), code, msg, hdrs, fp)
 
+class CompletingHTTPResponse(http_client.HTTPResponse):
+
+    # Override the _safe_read function when requesting a specific number
+    #  of bytes, to avoid IncompleteRead exception seen with python3.8,
+    #  apparently related somehow to M2Crypto
+    def _safe_read(self, amt):
+        data = bytearray()
+        while len(data) < amt:
+            ret = self.fp.read(amt-len(data))
+            if len(ret) == 0:
+                raise http_client.IncompleteRead(amt, amt-len(data))
+            data.extend(ret)
+        return data
+
 
 # function from http://stackoverflow.com/questions/4407539/python-how-to-make-an-option-to-be-required-in-optparse
 def checkRequiredOptions(parser):
@@ -427,6 +441,7 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
         elif showprogress:
             log(" failed")
         return None
+    handle.__class__ = CompletingHTTPResponse
     body = handle.read()
     if options.debug:
         log("##### Begin vault get bearer token response")
@@ -958,7 +973,7 @@ def main():
             fatal("no 'auth_url' in data from %s" % vaultserver)
         auth_url = data['auth_url']
         del data['auth_url'] 
-        if auth_url is "":
+        if auth_url == "":
             fatal("'auth_url' is empty in data from %s" % vaultserver)
 
         log()

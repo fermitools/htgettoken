@@ -6,8 +6,10 @@ cd "`dirname $0`"
 rm -rf $BASE-*
 BASE="$BASE-`sed -n 's/^%define downloads_version //p' htgettoken.spec`"
 mkdir $BASE
-# newer pip3 needed for cryptography
-pip3 install -U --no-cache-dir --prefix $PWD/$BASE/.local pip
+if [ "$(pip3 --version|sed 's/[^ ]* \([^.]*\).*/\1/')" -lt 19 ]; then
+    # newer pip3 needed for cryptography
+    pip3 install -U --no-cache-dir --prefix $PWD/$BASE/.local pip
+fi
 PATH=$PWD/$BASE/.local/bin:$PATH
 export PYTHONPATH=`echo $PWD/$BASE/.local/lib/*/site-packages`
 PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
