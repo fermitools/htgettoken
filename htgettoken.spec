@@ -39,7 +39,6 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 set -e
 PYDIR=$PWD/.local
 PATH=$PYDIR/bin:$PATH
-export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
 
 # install in reverse order of their download (because dependency downloads
 #   come after requested packages)
@@ -50,13 +49,16 @@ WHEELPKG="$(echo "$PKGS"|grep ^wheel)"
 PKGS="$(echo "$PKGS"|grep -v ^wheel|paste -sd ' ')"
 # --no-build-isolation is needed for offline build of pyinstaller as per
 #  https://github.com/pyinstaller/pyinstaller/issues/4557
-HOME=$PWD pip3 install --no-cache-dir --no-build-isolation --user $WHEELPKG
-HOME=$PWD pip3 install --no-cache-dir --no-build-isolation --user $PKGS
+# python3 is explicitly invoked here so it comes from $PATH to test
+#   various versions
+HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $WHEELPKG
+export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
+HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $PKGS
 
 cd ../%{name}-%{version}
 
 PYIOPTS="--noconsole --log-level=WARN"
-$PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
+python3 $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
 
 # Exclude system libraries from the bundle as documented at
 #  https://pyinstaller.readthedocs.io/en/stable/spec-files.html#posix-specific-options
@@ -64,7 +66,7 @@ awk '
     {if ($1 == "pyz") print "a.exclude_system_libraries()"}
     {print}
 ' dist/%{name}.spec >dist/%{name}-lesslibs.spec
-$PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
+python3 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
 
 find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
 
@@ -105,6 +107,8 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 # Expand the --vaultalias option to also additionally allow that name
 #  in vault's host certificate.
+# Support finding python3 from PATH and not only /usr/bin
+# Support python38
 
 * Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
 - Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.
