@@ -6,10 +6,11 @@
 
 usage()
 {
-    echo 'Usage: httokendecode [-a] [file]'
+    echo 'Usage: httokendecode [-a] [-H] [file]'
     echo
     echo 'Decodes a JSON Web Token'
     echo '  -a: show algorithm portion of JWT'
+    echo '  -H: show dates in human readable format instead of epoch '
     echo 'File name may be "-" to read from stdin.'
     echo 'If file name not given, follows WLCG Bearer Token Discovery'
     echo '  which is to first try $BEARER_TOKEN, next $BEARER_TOKEN_FILE,'
@@ -17,14 +18,79 @@ usage()
     exit 1
 } >&2
 
+decode_base64_url() {
+  local len=$((${#1} % 4))
+  local result="$1"
+  if [ $len -eq 2 ]; then result="$1"'=='
+  elif [ $len -eq 3 ]; then result="$1"'=' 
+  fi
+  echo "$result" | tr '_-' '/+' | base64 --decode
+}
+
+
+decode_jwt() {
+  local showalg=$1
+  local token=$2
+  if "$showalg" ; then
+      decode_base64_url "$(echo "$token"|cut -d. -f1)" | jq .
+  fi
+  decode_base64_url "$(echo "$token"|cut -d. -f2)" | jq .
+}
+
+
+
+human_dates() {
+
+    local wrd
+    local w1
+    local date
+
+    for wrd in "$@"; do
+        echo "$wrd" | grep -iE '{|}|"'
+        # shellcheck disable=2181
+        if [ "$?" -ne 0 ]; then
+            # w1=${wrd//,//} gives parse errors
+            # shellcheck disable=2001
+            w1=$(echo "$wrd" | sed -e s'/,//')
+            if echo "$w1" | grep -q "[0-9]"; then
+               # jq parses this wrong if w1 is quoted 
+               # shellcheck disable=2086 
+               date=$(echo $w1 | jq 'todate')
+               echo "$date"
+               if echo "$wrd" | grep -q ',' ; then
+                   echo ','
+               fi
+            else
+                echo "$wrd"
+            fi
+        fi
+    done
+}
+
+
+# script starts here -- "main"
+
 set -e
+
 SHOWALG=false
-if [ "$1" = "-a" ]; then
-    SHOWALG=true
-    shift
-elif [[ "$1" == -?* ]]; then
-    usage
-fi
+HUMANDATE=false
+NUMSHIFT=0
+while getopts ":aH" opt; do
+    case "$opt" in
+       a)
+          SHOWALG=true
+          (( NUMSHIFT+=1 ))
+          ;;
+       H)
+          HUMANDATE=true
+          (( NUMSHIFT+=1 ))
+          ;;
+       *)
+          usage
+    esac
+done
+shift "$NUMSHIFT"
+
 TOKEN=""
 TOKENFILE=""
 if [ $# = 0 ]; then
@@ -54,16 +120,12 @@ if [ -z "$TOKEN" ]; then
     usage
 fi
 
-decode_base64_url() {
-  local len=$((${#1} % 4))
-  local result="$1"
-  if [ $len -eq 2 ]; then result="$1"'=='
-  elif [ $len -eq 3 ]; then result="$1"'=' 
-  fi
-  echo "$result" | tr '_-' '/+' | base64 -d
-}
 
-if $SHOWALG; then
-    decode_base64_url "`echo "$TOKEN"|cut -d. -f1`" | jq .
+JWT="$(decode_jwt "$SHOWALG" "$TOKEN")"
+
+if "$HUMANDATE"  ; then
+   READABLE="$(human_dates $JWT)"
+   echo $READABLE | jq .
+else
+   echo "$JWT" | jq .
 fi
-decode_base64_url "`echo "$TOKEN"|cut -d. -f2`" | jq .
