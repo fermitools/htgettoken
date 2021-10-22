@@ -47,16 +47,12 @@ human_dates() {
 
     for wrd in "$@"; do
         echo "$wrd" | grep -iE '{|}|"'
-        # shellcheck disable=2181
         if [ "$?" -ne 0 ]; then
-            # w1=${wrd//,//} gives parse errors
-            # shellcheck disable=2001
             w1=$(echo "$wrd" | sed -e s'/,//')
             if echo "$w1" | grep -q "[0-9]"; then
-               # jq parses this wrong if w1 is quoted 
-               # shellcheck disable=2086 
-               date=$(echo $w1 | jq 'todate')
-               echo "$date"
+               w1="@$w1"
+               date="$(date --date=$w1)"
+               echo "\"$date\""
                if echo "$wrd" | grep -q ',' ; then
                    echo ','
                fi
