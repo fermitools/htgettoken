@@ -109,6 +109,8 @@ rm -rf $RPM_BUILD_ROOT
 #  in vault's host certificate.
 # Support finding python3 from PATH and not only /usr/bin
 # Support python38
+# Add httokendecode -H option
+# Fix bug that caused traceback when handling an error writing the credkey
 
 * Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
 - Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.

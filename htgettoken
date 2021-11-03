@@ -1104,7 +1104,7 @@ def main():
             try:
                 os.makedirs(os.path.expanduser(options.configdir), exist_ok=True)
             except Exception as e:
-                efatal('error creating %s' % configdir, e)
+                efatal('error creating %s' % options.configdir, e)
             try:
                 with open(configfile, 'w') as file:
                     file.write(credkey + '\n')
