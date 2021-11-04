@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.6
+Version: 1.7
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -105,12 +105,15 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# Expand the --vaultalias option to also additionally allow that name
-#  in vault's host certificate.
-# Support finding python3 from PATH and not only /usr/bin
-# Support python38
-# Add httokendecode -H option
-# Fix bug that caused traceback when handling an error writing the credkey
+* Wed Nov  3 2021 Dave Dykstra <dwd@fnal.gov> 1.7-1
+- Start using new vault secrets plugin feature that allows it to be shared
+   between all issuers.  Requires htvault-config >= 1.5.
+- Expand the --vaultalias option to also additionally allow that name
+-  in vault's host certificate.
+- Support finding python3 from PATH and not only /usr/bin
+- Support python38
+- Add httokendecode -H option
+- Fix bug that caused traceback when handling an error writing the credkey
 
 * Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
 - Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.
