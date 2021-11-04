@@ -1,4 +1,4 @@
-%define downloads_version 1.3
+%define downloads_version 1.4
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
@@ -114,6 +114,7 @@ rm -rf $RPM_BUILD_ROOT
 - Support python38
 - Add httokendecode -H option
 - Fix bug that caused traceback when handling an error writing the credkey
+- Update python dependencies to current versions in pip
 
 * Wed Sep 15 2021 Dave Dykstra <dwd@fnal.gov> 1.6-1
 - Try a default cafile of '/etc/pki/tls/cert.pem' if system default is empty.
