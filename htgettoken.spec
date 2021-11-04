@@ -3,7 +3,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 1.7
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: BSD
 Group: Applications/System
 URL: https://github.com/fermitools/htgettoken
@@ -19,6 +19,9 @@ BuildRequires: python3-devel
 #   OpenSSL 1.1
 BuildRequires: swig
 BuildRequires: openssl-devel
+
+# Needed by httokendecode
+Requires: jq
 
 %description
 htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
@@ -105,6 +108,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Nov  4 2021 Dave Dykstra <dwd@fnal.gov> 1.7-2
+- Require jq for the sake of httokendecode
+
 * Wed Nov  3 2021 Dave Dykstra <dwd@fnal.gov> 1.7-1
 - Start using new vault secrets plugin feature that allows it to be shared
    between all issuers.  Requires htvault-config >= 1.5.
