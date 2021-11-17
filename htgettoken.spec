@@ -3,7 +3,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 1.7
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: BSD
 Group: Applications/System
 URL: https://github.com/fermitools/htgettoken
@@ -108,6 +108,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Nov 17 2021 Dave Dykstra <dwd@fnal.gov> 1.7-3
+- Update version number to 1.7 in htgettoken
+
 * Thu Nov  4 2021 Dave Dykstra <dwd@fnal.gov> 1.7-2
 - Require jq for the sake of httokendecode
 
