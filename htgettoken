@@ -856,8 +856,10 @@ def main():
                 log("Initializing kerberos client for", service)
             elif showprogress:
                 log('Attempting kerberos auth with ' + vaultserver + ' ...', end='', flush=True)
-            if os.getenv("KRB5_CONFIG") is None:
-                # skip reading from /etc/krb5.conf, it can interfere
+            krb5_config = os.getenv("KRB5_CONFIG")
+            if krb5_config is None:
+                # Try not reading from /etc/krb5.conf because it can
+                # interfere if the kerberos domain is missing
                 os.putenv("KRB5_CONFIG", "")
             kcontext = None
             try:
@@ -867,10 +869,29 @@ def main():
                 kerberos.authGSSClientStep(kcontext, "")
             except Exception as e:
                 kcontext = None
-                if options.verbose:
-                    elog("Kerberos init failed", e)
-                elif showprogress:
-                    log(" failed")
+                if krb5_config is None and (len(e.args) != 2 or \
+                        len(e.args[1]) != 2 or 'expired' not in e.args[1][0]):
+                    # Try again with the default KRB5_CONFIG because 
+                    # krb5.conf might be there and might work better.
+                    # Don't do it for expired tickets because those have
+                    # been observed to not always get caught with 2nd try.
+                    if options.debug:
+                        elog("Kerberos init with KRB5_CONFIG='' failed", e)
+                        log("Trying again without it")
+                    os.unsetenv("KRB5_CONFIG")
+                    try:
+                        __, kcontext = kerberos.authGSSClientInit(service=service,
+                                            mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
+                                            principal=options.kerbprincipal)
+                        kerberos.authGSSClientStep(kcontext, "")
+                    except Exception as e2:
+                        kcontext = None
+                        e = e2
+                if kcontext is None:
+                    if options.verbose:
+                        elog("Kerberos init failed", e)
+                    elif showprogress:
+                        log(" failed")
 
             if kcontext != None:
                 kerberostoken = kerberos.authGSSClientResponse(kcontext)
