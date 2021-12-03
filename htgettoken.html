@@ -1,5 +1,5 @@
 <!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Tue Sep 14 10:34:22 2021 -->
+<!-- CreationDate: Fri Dec  3 17:56:14 2021 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -62,8 +62,9 @@ vault</p>
 gets OIDC bearer tokens by interacting with a Hashicorp
 vault server configured for retrieving and storing OIDC
 refresh tokens. By default it attempts to authenticate first
-using kerberos, and if that doesn&rsquo;t enable reading a
-bearer token then it uses OIDC authentication, including
+using kerberos if it is available, next tries using
+ssh-agent if it is available, and if neither enables reading
+a bearer token then it uses OIDC authentication including
 directing users to their web browsers to complete the
 authentication. If that authentication is successful,
 <b>htgettoken</b> accepts the refresh token (which is only
@@ -181,7 +182,7 @@ authentication.</p>
 authentication. The default is</p>
 
 
-<p style="margin-left:32%;">auth/kerberos-%issuer_%role/login</p>
+<p style="margin-left:32%;">auth/kerberos-%issuer_%role</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;kerbprincipal=principal</b></p>
@@ -209,7 +210,31 @@ OIDC authentication. The default is</p>
 <p style="margin-left:32%;">auth/oidc-%issuer/oidc</p>
 
 <p style="margin-left:22%;">where %issuer is the value from
-the <i>&minus;&minus;issuer</i> option.</p>
+the <i>&minus;&minus;issuer</i> option. &nbsp;</p>
+
+<p style="margin-left:11%;"><b>&minus;&minus;nossh</b></p>
+
+<p style="margin-left:22%;">Do not attempt to do ssh-agent
+authentication.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;sshpath=vaultpath</b></p>
+
+<p style="margin-left:22%;">The path in vault for doing
+ssh-agent authentication. The default is</p>
+
+<p style="margin-left:32%;">auth/ssh &nbsp;</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;registerssh</b></p>
+
+<p style="margin-left:22%;">Register all public keys
+available from <b>ssh-agent</b> with vault for future use.
+This forces OIDC authentication even if a valid vault token
+is already available and does the normal OIDC flow and then
+registers the public keys before storing the vault token and
+access token. Must be allowed in the configuration of the
+vault server in order to work.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;c&nbsp;path</b>,&nbsp;<b>&minus;&minus;configdir=path</b></p>
@@ -437,6 +462,15 @@ line.</p>
 
 <p style="margin-left:22%;">Location of a kerberos 5
 credentials (ticket) cache.</p>
+
+<p style="margin-left:11%;"><b>SSH_AUTH_SOCK</b></p>
+
+<p style="margin-left:22%;">If set, points to a socket that
+can be used to communicate with <b>ssh-agent</b>. This is
+automatically created by <b>ssh-agent</b> and can be
+automatically forwarded by <b>ssh</b> with a
+&quot;ForwardAgent=yes&quot; option. To add a key to the
+agent use <b>ssh-add</b>.</p>
 
 <p style="margin-left:11%;"><b>SSH_CLIENT</b></p>
 
