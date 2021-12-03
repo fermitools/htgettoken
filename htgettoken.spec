@@ -1,8 +1,8 @@
-%define downloads_version 1.4
+%define downloads_version 1.5
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.8
+Version: 1.9
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -108,12 +108,18 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Dec  3 2021 Dave Dykstra <dwd@fnal.gov> 1.9-1
+- Add support for ssh-agent authentication, including the --sshpath, 
+  --nossh and --registerssh options.  Add the paramiko package to the
+  included library packages.
+- Remove "/login" from --kerbpath.
+
 * Fri Nov 19 2021 Dave Dykstra <dwd@fnal.gov> 1.8-1
 - If kerberos initialization fails with the default KRB5_CONFIG="", try
-    again without it.  Observed to be needed at CNAF, although not for
-    FNAL, CERN, or LIGO.  Don't do second try if the first error was due
-    to an expired ticket, because that sometimes erroneously succeeds on
-    second try.
+  again without it.  Observed to be needed at CNAF, although not for
+  FNAL, CERN, or LIGO.  Don't do second try if the first error was due
+  to an expired ticket, because that sometimes erroneously succeeds on
+  second try.
 
 * Wed Nov 17 2021 Dave Dykstra <dwd@fnal.gov> 1.7-3
 - Update version number to 1.7 in htgettoken
