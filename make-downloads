@@ -17,6 +17,7 @@ pip3 $PIPOPTS pyinstaller
 pip3 $PIPOPTS m2crypto
 pip3 $PIPOPTS pyOpenSSL
 pip3 $PIPOPTS kerberos
+pip3 $PIPOPTS paramiko
 pip3 $PIPOPTS wheel
 tar czvf $BASE.tar.gz $BASE
 rm -rf $BASE

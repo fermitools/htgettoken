@@ -17,13 +17,15 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.8"
+version = "1.9"
 
 import os
 import sys
 import socket
 import ssl
 import string
+import base64
+import struct
 import json
 import re
 import shlex
@@ -32,6 +34,8 @@ import subprocess
 import signal
 import time
 import secrets
+import kerberos
+import paramiko
 from optparse import OptionParser
 
 try:
@@ -47,7 +51,6 @@ except ImportError: # python < 3
     from urllib2 import HTTPError
     import urlparse as urllib_parse
 
-import kerberos
 from M2Crypto import SSL, X509, EVP, RSA, ASN1, m2
 from OpenSSL import crypto
 
@@ -332,7 +335,8 @@ def parseargs(parser, argv):
 
 
 # Either extract the vault token from an auth response or exchange
-#  it for another one if the lease_duration is too long
+#  it for another one if either the lease_duration is too long or it
+#  includes an sshregister policy.
 def getVaultToken(opener, vaultserver, vaulttokensecs, response):
     if 'auth' not in response:
         fatal("no 'auth' in response from %s" % vaultserver)
@@ -342,7 +346,16 @@ def getVaultToken(opener, vaultserver, vaulttokensecs, response):
         fatal("no 'client_token' in response from %s" % vaultserver)
     vaulttoken = auth['client_token']
 
-    if 'lease_duration' in auth and int(auth['lease_duration']) <= vaulttokensecs:
+    policies = None
+    if 'policies' in auth:
+        for policy in auth['policies']:
+            if policy.startswith('sshregister'):
+                policies = auth['policies']
+                policies.remove(policy)
+                break
+
+    if 'lease_duration' in auth and int(auth['lease_duration']) <= vaulttokensecs \
+            and policies is None:
         # don't need to exchange, already the correct duration or shorter
         return vaulttoken
 
@@ -352,11 +365,14 @@ def getVaultToken(opener, vaultserver, vaulttokensecs, response):
         # normally do this quietly; don't want to advertise the exchange
         log("Reading from", url)
     headers = {'X-Vault-Token': vaulttoken}
-    data = json.dumps({
+    data = {
         'ttl': options.vaulttokenttl,
         'renewable': 'false',
-    })
-    request = urllib_request.Request(url=url, headers=headers, data=data.encode())
+    }
+    if policies is not None:
+        data['policies'] = policies
+
+    request = urllib_request.Request(url=url, headers=headers, data=json.dumps(data).encode())
     handle = None
     try:
         handle = opener.open(request)
@@ -420,7 +436,7 @@ def getBearerToken(opener, vaultserver, vaulttoken, vaultpath):
     if options.verbose:
         log("  at path " + vaultpath)
     elif showprogress:
-        log('Attempting to get token from ' + vaultserver + ' ...', end='', flush=True)
+        log("Attempting to get token from " + vaultserver + " ...", end='', flush=True)
     url = vaultserver + '/v1/' + vaultpath
     params = {'minimum_seconds': options.minsecs}
     if options.scopes is not None:
@@ -564,7 +580,7 @@ def main():
                       help="skip attempting to use kerberos authentication")
     parser.add_option("--kerbpath",
                       metavar="vaultpath",
-                      default="auth/kerberos-%issuer_%role/login",
+                      default="auth/kerberos-%issuer_%role",
                       help="path in vault for accessing kerberos authentication")
     parser.add_option("--kerbprincipal",
                       metavar="principal",
@@ -576,6 +592,16 @@ def main():
                       metavar="vaultpath",
                       default="auth/oidc-%issuer/oidc",
                       help="path in vault for accessing oidc authentication")
+    parser.add_option("--nossh",
+                      action="store_true", default=False,
+                      help="skip attempting to use ssh-agent authentication")
+    parser.add_option("--sshpath",
+                      metavar="vaultpath",
+                      default="auth/ssh",
+                      help="path in vault for accessing ssh-agent authentication")
+    parser.add_option("--registerssh",
+                      action="store_true", default=False,
+                      help="register ssh-agent keys (forces oidc authentication)")
     parser.add_option("-c", "--configdir",
                       metavar="path",
                       default="~/.config/" + prog,
@@ -692,6 +718,9 @@ def main():
     global showprogress
     if not options.quiet and not options.verbose:
         showprogress = True
+    if options.registerssh:
+        options.nokerberos = True
+        options.nossh = True
 
     # calculate vault token ttl and minttl in seconds
     vaulttokensecs = ttl2secs(options.vaulttokenttl, "--vaulttokenttl")
@@ -800,7 +829,7 @@ def main():
                 if options.verbose:
                     log("Credkey from %s: %s" % (configfile, credkey))
 
-    if credkey is not None or options.nobearertoken:
+    if (credkey is not None or options.nobearertoken) and not options.registerssh:
         fullsecretpath = ""
         if not options.nobearertoken:
             fullsecretpath = secretpath.replace("%credkey", credkey)
@@ -855,7 +884,7 @@ def main():
             if options.verbose:
                 log("Initializing kerberos client for", service)
             elif showprogress:
-                log('Attempting kerberos auth with ' + vaultserver + ' ...', end='', flush=True)
+                log("Attempting kerberos auth with " + vaultserver + " ...", end='', flush=True)
             krb5_config = os.getenv("KRB5_CONFIG")
             if krb5_config is None:
                 # Try not reading from /etc/krb5.conf because it can
@@ -900,7 +929,7 @@ def main():
 
                 kerbpath = options.kerbpath.replace("%issuer", options.issuer)
                 kerbpath = kerbpath.replace("%role", options.role)
-                url = str(vaultserver) + "/v1/" + kerbpath
+                url = str(vaultserver) + "/v1/" + kerbpath + '/login'
                 if options.verbose:
                     log("Negotiating kerberos with", vaultserver)
                     log("  at path " + kerbpath)
@@ -945,6 +974,123 @@ def main():
                             for error in response['errors']:
                                 log("  " + error)
                 elif showprogress:
+                    log(" failed")
+
+        if bearertoken is None and not options.nossh:
+            # Try ssh-agent authentication with vault
+            vaulttoken = None
+            try:
+                agent = paramiko.Agent()
+            except Exception as e:
+                efatal("Error checking for ssh-agent keys", e)
+            agent_keys = agent.get_keys()
+            if len(agent_keys) == 0:
+                if options.verbose:
+                    log("No ssh-agent keys found")
+            else:
+                if showprogress:
+                    log("Attempting ssh-agent auth with " + vaultserver + " ...", end='', flush=True)
+
+                metadata = {
+                    "issuer": options.issuer,
+                    "group": options.role
+                }
+
+                keynum = 0
+                for key in agent_keys:
+                    keynum += 1
+                    keyname = 'key' + str(keynum)
+
+                    url = vaultserver + '/v1/' + options.sshpath + '/nonce'
+                    if options.verbose:
+                        log("Getting ssh nonce from " + url)
+                    request = urllib_request.Request(url=url)
+                    handle = None
+                    try:
+                        handle = opener.open(request)
+                    except Exception as e:
+                        if options.verbose:
+                            elog("Getting ssh nonce failed", e)
+                        break
+                    body = handle.read()
+                    if options.debug:
+                        log("##### Begin ssh-agent nonce response")
+                        log(body)
+                        log("##### End ssh-agent nonce response")
+                    data = json.loads(body)
+                    nonce = data["data"]["nonce"]
+                    b64nonce = base64.b64encode(nonce.encode()).decode()
+
+                    d = key.sign_ssh_data(nonce)
+                    parts = []
+                    while d:
+                        ln = struct.unpack('>I', d[:4])[0]
+                        bits = d[4:ln+4]
+                        parts.append(bits)
+                        d = d[ln+4:]
+                    sig = parts[1]
+                    b64sig = base64.b64encode(sig).decode()
+
+                    pubkey = key.get_name() + ' ' + key.get_base64() + ' ' + keyname
+                    data = {
+                        'role': credkey,
+                        'public_key': pubkey,
+                        'signature': b64sig,
+                        'nonce': b64nonce,
+                        'metadata': metadata
+                    }
+                    if metadata != {}:
+                        data['metadata'] = metadata
+                    datastr = json.dumps(data)
+
+                    url = vaultserver + '/v1/' + options.sshpath + '/login'
+                    if options.verbose:
+                        log("Attempting to login with ssh " + keyname + " at " + url)
+                    request = urllib_request.Request(url=url, data=datastr.encode())
+                    handle = None
+                    try:
+                        handle = opener.open(request)
+                    except Exception as e:
+                        if options.verbose:
+                            elog("Logging in with ssh " + keyname + " failed", e)
+                        continue
+
+                    body = handle.read()
+                    if options.debug:
+                        log("##### Begin ssh-agent login response")
+                        log(body)
+                        log("##### End ssh-agent login response")
+
+                    try:
+                        response = json.loads(body)
+                    except Exception as e:
+                        efatal("decoding response from %s failed" % vaultserver, e)
+
+                    if 'auth' in response and response['auth'] is not None:
+                        if showprogress:
+                            log(" succeeded")
+                        vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
+                        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+
+                        if options.verbose:
+                            log("Attempting to get bearer token from " + vaultserver)
+
+                        bearertoken = getBearerToken(opener, vaultserver,
+                                                    vaulttoken, fullsecretpath)
+
+                    elif options.verbose:
+                        log("ssh-agent authentication failed")
+                        if options.debug:
+                            if 'warnings' in response:
+                                for warning in response['warnings']:
+                                    log("  " + warning)
+                            if 'errors' in response:
+                                for error in response['errors']:
+                                    log("  " + error)
+
+                    break
+
+                if showprogress and vaulttoken is None:
                     log(" failed")
 
     if bearertoken is None and not options.nooidc:
@@ -1098,6 +1244,52 @@ def main():
             else:
                 # good reply
                 break
+
+        if options.registerssh:
+            try:
+                agent = paramiko.Agent()
+            except Exception as e:
+                efatal("Error checking for ssh-agent keys", e)
+            agent_keys = agent.get_keys()
+            if len(agent_keys) == 0:
+                fatal("No ssh-agent keys found to register")
+            if showprogress:
+                log("Registering ssh keys at " + vaultserver + " ...", end='', flush=True)
+            pubkeys = []
+            keynum = 0
+            for key in agent_keys:
+                keynum += 1
+                keyname = 'key' + str(keynum)
+                pubkeys.append(key.get_name() + ' ' + key.get_base64() + ' ' + keyname)
+
+            if 'auth' not in response:
+                fatal("no 'auth' in response from %s" % vaultserver)
+            auth = response['auth']
+            if 'client_token' not in auth:
+                fatal("no 'client_token' in response from %s" % vaultserver)
+            vaulttoken = auth['client_token']
+            headers = {'X-Vault-Token': vaulttoken}
+
+            if options.verbose:
+                log("Registering ssh keys at " + vaultserver)
+                for pubkey in pubkeys:
+                    log("  " + pubkey)
+
+            url = vaultserver + '/v1/' + options.sshpath + '/role/' + credkey
+            data = {
+                'public_keys': pubkeys
+            }
+            request = urllib_request.Request(url=url, headers=headers, data=json.dumps(data).encode())
+            handle = None
+            try:
+                handle = opener.open(request)
+            except Exception as e:
+                if showprogress:
+                    log(" failed")
+                efatal("ssh key registration failed to %s failed" % vaultserver, e)
+            if showprogress:
+                log(" done")
+
 
         vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
         writeTokenSafely("vault", vaulttoken, vaulttokenfile)

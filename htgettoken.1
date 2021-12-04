@@ -10,8 +10,9 @@ htgettoken \- get OIDC bearer tokens by interacting with Hashicorp vault
 .B htgettoken
 gets OIDC bearer tokens by interacting with a Hashicorp vault server
 configured for retrieving and storing OIDC refresh tokens.  By default
-it attempts to authenticate first using kerberos, and if that doesn't
-enable reading a bearer token then it uses OIDC authentication,
+it attempts to authenticate first using kerberos if it is available,
+next tries using ssh-agent if it is available, and if neither 
+enables reading a bearer token then it uses OIDC authentication
 including directing users to their web browsers to complete the
 authentication.  If that authentication is successful,
 .B htgettoken
@@ -95,7 +96,7 @@ Do not attempt to use kerberos authentication.
 The path in vault for kerberos authentication.  The default is
 .RS
 .RS
-auth/kerberos-%issuer_%role/login
+auth/kerberos-%issuer_%role
 .RE
 .RE
 .TP
@@ -122,6 +123,26 @@ where %issuer is the value from the
 .I \-\-issuer
 option.
 .RE
+.TP
+.BR \ \-\-nossh
+Do not attempt to do ssh-agent authentication.
+.TP
+.BR \-\-sshpath=vaultpath
+The path in vault for doing ssh-agent authentication.  The default is
+.RS
+.RS
+auth/ssh
+.RE
+.RE
+.TP
+.BR \ \-\-registerssh
+Register all public keys available from
+.B ssh-agent
+with vault for future use.  This forces OIDC authentication even if a
+valid vault token is already available and does the normal OIDC flow and
+then registers the public keys before storing the vault token and access
+token.  Must be allowed in the configuration of the vault server in
+order to work.
 .TP
 .BR \-c\ path , \ \-\-configdir=path
 The path to a directory to save
@@ -305,6 +326,16 @@ command line.
 .TP
 .B "KRB5CCNAME"
 Location of a kerberos 5 credentials (ticket) cache.
+.TP
+.B "SSH_AUTH_SOCK"
+If set, points to a socket that can be used to communicate with
+.BR ssh-agent .
+This is automatically created by 
+.B ssh-agent
+and can be automatically forwarded by
+.B ssh
+with a "ForwardAgent=yes" option.  To add a key to the agent use
+.BR ssh-add .
 .TP
 .B "SSH_CLIENT"
 If set, there is no default web open command.  If not set, the default
