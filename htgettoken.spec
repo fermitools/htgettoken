@@ -18,6 +18,11 @@ Source0: %{name}-%{version}.tar.gz
 
 # rpmbuild dependencies
 BuildRequires: python-rpm-macros
+BuildRequires: python3-rpm-macros
+
+# build dependencies
+BuildRequires: python3
+BuildRequires: python%{python3_pkgversion}-setuptools
 
 # -- Package: htgettoken
 
@@ -39,24 +44,21 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %doc README.md
 %{_bindir}/*
 %{_datadir}/man/man1/%{name}*
+%{python3_sitelib}/*
 
 # -- build steps
 
 %prep
 %autosetup -n %{name}-%{version}
 
-%install
-# install scripts
-mkdir -p %{buildroot}%{_bindir}
-install -p -m 755 -t %{buildroot}%{_bindir} \
-	htdestroytoken \
-	htgettoken \
-	httokendecode \
-;
+%build
+%py3_build
 
+%install
+# install the Python project
+%py3_install
 # link htdecodetoken to httokendecode
 (cd %{buildroot}%{_bindir}/; ln -s httokendecode htdecodetoken)
-
 # install man page(s)
 mkdir -p %{buildroot}%{_datadir}/man/man1
 gzip -c %{name}.1 >%{buildroot}%{_datadir}/man/man1/%{name}.1.gz
@@ -73,6 +75,7 @@ rm -rf $RPM_BUILD_ROOT
 # - Add --vaultcertname option to specify an alternative certificate name.
 #   That used to be an additional optional meaning of the --vaultalias option,
 #   but urllib3 requires only one name to match.
+# - Add setuptools build infrastructure
 
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word

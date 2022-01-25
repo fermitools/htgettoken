@@ -1,2 +1,4 @@
 htgettoken-*.tar.gz
+htgettoken.egg-info/
+dist/
 man1/
