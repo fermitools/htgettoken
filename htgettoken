@@ -956,13 +956,15 @@ def main():
                     if showprogress:
                         log(" succeeded")
                     vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
-                    writeTokenSafely("vault", vaulttoken, vaulttokenfile)
-
                     if options.verbose:
                         log("Attempting to get bearer token from " + vaultserver)
 
                     bearertoken = getBearerToken(opener, vaultserver,
                                                 vaulttoken, fullsecretpath)
+
+                    if bearertoken is not None:
+                        # getting bearer token worked, write out vault token
+                        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
 
                 elif options.verbose:
                     log("Kerberos authentication failed")
@@ -1070,13 +1072,15 @@ def main():
                         if showprogress:
                             log(" succeeded")
                         vaulttoken = getVaultToken(opener, vaultserver, vaulttokensecs, response)
-                        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
-
                         if options.verbose:
                             log("Attempting to get bearer token from " + vaultserver)
 
                         bearertoken = getBearerToken(opener, vaultserver,
                                                     vaulttoken, fullsecretpath)
+
+                        if bearertoken is not None:
+                            # getting bearer token worked, write out vault token
+                            writeTokenSafely("vault", vaulttoken, vaulttokenfile)
 
                     elif options.verbose:
                         log("ssh-agent authentication failed")
