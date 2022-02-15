@@ -110,6 +110,8 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 # Write out vault tokens after kerberos or ssh authentication only
 # if they can successfully be used to read a bearer token.
+# Change the oidc authentication prompt to say to "copy/paste into any web
+# browser" instead of "open URL manually".
 
 * Fri Dec  3 2021 Dave Dykstra <dwd@fnal.gov> 1.9-1
 - Add support for ssh-agent authentication, including the --sshpath, 

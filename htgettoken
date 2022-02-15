@@ -1141,7 +1141,7 @@ def main():
             fatal("'auth_url' is empty in data from %s" % vaultserver)
 
         log()
-        log("Complete the authentication via web browser at:")
+        log("Complete the authentication at:")
         log("    " + auth_url)
         if 'user_code' in data:
             log("When prompted, enter code " + data['user_code'])
@@ -1149,8 +1149,7 @@ def main():
          
         opencmd = options.web_open_command
         if opencmd == "":
-            if not options.quiet:
-                log("No web open command defined, please open URL manually")
+            log("No web open command defined, please copy/paste the above to any web browser")
         else:
             # Don't use python's webbrowser library; it tries too many things
             browser = os.getenv("BROWSER")
