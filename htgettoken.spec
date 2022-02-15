@@ -1,8 +1,8 @@
-%define downloads_version 1.5
+%define downloads_version 1.6
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.9
+Version: 1.10
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -108,10 +108,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# Write out vault tokens after kerberos or ssh authentication only
-# if they can successfully be used to read a bearer token.
-# Change the oidc authentication prompt to say to "copy/paste into any web
-# browser" instead of "open URL manually".
+* Tue Feb 15 2021 Dave Dykstra <dwd@fnal.gov> 1.10-1
+- Write out vault tokens after kerberos or ssh authentication only
+  if they can successfully be used to read a bearer token
+- Change the oidc authentication prompt to say to "copy/paste into any web
+  browser" instead of "open URL manually"
+- Update python dependencies to current versions in pip
 
 * Fri Dec  3 2021 Dave Dykstra <dwd@fnal.gov> 1.9-1
 - Add support for ssh-agent authentication, including the --sshpath, 
