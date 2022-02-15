@@ -108,7 +108,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Tue Feb 15 2021 Dave Dykstra <dwd@fnal.gov> 1.10-1
+* Tue Feb 15 2022 Dave Dykstra <dwd@fnal.gov> 1.10-1
 - Write out vault tokens after kerberos or ssh authentication only
   if they can successfully be used to read a bearer token
 - Change the oidc authentication prompt to say to "copy/paste into any web
