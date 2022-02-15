@@ -108,6 +108,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# Write out vault tokens after kerberos or ssh authentication only
+# if they can successfully be used to read a bearer token.
+
 * Fri Dec  3 2021 Dave Dykstra <dwd@fnal.gov> 1.9-1
 - Add support for ssh-agent authentication, including the --sshpath, 
   --nossh and --registerssh options.  Add the paramiko package to the
