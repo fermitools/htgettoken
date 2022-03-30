@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.10
+Version: 1.11
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -108,6 +108,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Wed Mar 30 2022 Dave Dykstra <dwd@fnal.gov> 1.11-1
+- Update httokendecode to also validate the token if scitokens-verify is
+  in $PATH. 
+
 * Tue Feb 15 2022 Dave Dykstra <dwd@fnal.gov> 1.10-1
 - Write out vault tokens after kerberos or ssh authentication only
   if they can successfully be used to read a bearer token
