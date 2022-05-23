@@ -84,6 +84,10 @@ showprogress = False
 logfile = sys.stderr
 vaulthostname = None
 
+# enable printing utf-8 without crashing
+sys.stdout = open(1, 'w', encoding='utf-8', closefd=False)
+sys.stderr = open(2, 'w', encoding='utf-8', closefd=False)
+
 # print wrapper.  print to logfile.
 # based on https://stackoverflow.com/a/26286311
 def log(*args, **kwargs):
