@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.11
+Version: 1.12
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -108,6 +108,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Mon May 23 2022 Dave Dykstra <dwd@fnal.gov> 1.12-1
+- Update htgettoken to allow utf-8 characters in messages.
+
 * Wed Mar 30 2022 Dave Dykstra <dwd@fnal.gov> 1.11-1
 - Update httokendecode to also validate the token if scitokens-verify is
   in $PATH. 
