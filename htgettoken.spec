@@ -108,6 +108,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# Disable kerberos reverse DNS lookup in order to work when the vault
+# server is using a DNS alias.
+
 * Mon May 23 2022 Dave Dykstra <dwd@fnal.gov> 1.12-1
 - Update htgettoken to allow utf-8 characters in messages.
 

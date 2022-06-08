@@ -889,11 +889,24 @@ def main():
                 log("Initializing kerberos client for", service)
             elif showprogress:
                 log("Attempting kerberos auth with " + vaultserver + " ...", end='', flush=True)
+
+            # Need to disable kerberos reverse DNS lookup in order to
+            #  work properly with server aliases
+            cfgfile = tempfile.NamedTemporaryFile(mode='w')
+            if options.debug:
+                log("Disabling kerberos reverse DNS lookup in " + cfgfile.name) 
+            cfgfile.write("[libdefaults]\n    rdns = false\n")
+            cfgfile.flush()
+
             krb5_config = os.getenv("KRB5_CONFIG")
             if krb5_config is None:
                 # Try not reading from /etc/krb5.conf because it can
                 # interfere if the kerberos domain is missing
-                os.putenv("KRB5_CONFIG", "")
+                os.environ["KRB5_CONFIG"] = cfgfile.name
+            else:
+                os.environ["KRB5_CONFIG"] = cfgfile.name + ':' + krb5_config
+            if options.debug:
+                log("Setting KRB5_CONFIG=" + os.getenv("KRB5_CONFIG"))
             kcontext = None
             try:
                 __, kcontext = kerberos.authGSSClientInit(service=service,
@@ -909,9 +922,11 @@ def main():
                     # Don't do it for expired tickets because those have
                     # been observed to not always get caught with 2nd try.
                     if options.debug:
-                        elog("Kerberos init with KRB5_CONFIG='' failed", e)
-                        log("Trying again without it")
-                    os.unsetenv("KRB5_CONFIG")
+                        elog("Kerberos init without /etc/krb5.conf failed", e)
+                        log("Trying again with /etc/krb5.conf")
+                    os.environ["KRB5_CONFIG"] = cfgfile.name + ":/etc/krb5.conf"
+                    if options.debug:
+                        log("Setting KRB5_CONFIG=" + os.getenv("KRB5_CONFIG"))
                     try:
                         __, kcontext = kerberos.authGSSClientInit(service=service,
                                             mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
@@ -925,6 +940,8 @@ def main():
                         elog("Kerberos init failed", e)
                     elif showprogress:
                         log(" failed")
+
+            cfgfile.close()
 
             if kcontext != None:
                 kerberostoken = kerberos.authGSSClientResponse(kcontext)
