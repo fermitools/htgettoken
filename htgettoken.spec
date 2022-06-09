@@ -3,7 +3,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 1.13
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: BSD
 Group: Applications/System
 URL: https://github.com/fermitools/htgettoken
@@ -69,7 +69,21 @@ awk '
     {if ($1 == "pyz") print "a.exclude_system_libraries()"}
     {print}
 ' dist/%{name}.spec >dist/%{name}-lesslibs.spec
-python3 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibs.spec
+
+# Also disable warnings beause of CryptographyDeprecationWarning on python3.6
+# following hint at https://stackoverflow.com/a/57766145/10457761
+awk '{
+    if ($3 == "EXE(pyz,") {
+        print
+        getline
+        print
+        getline
+        sub("\\[","[('\''W ignore'\'', None, '\''OPTION'\'')")
+    }
+    print
+}' dist/%{name}-lesslibs.spec >dist/%{name}-lesslibsandwarn.spec
+
+python3 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibsandwarn.spec
 
 find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
 
@@ -108,6 +122,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Jun  9 2022 Dave Dykstra <dwd@fnal.gov> 1.13-2
+- Suppress python warnings in order to avoid CryptographyDeprecationWarning
+  about python3.6 being deprecated.
+
 * Thu Jun  9 2022 Dave Dykstra <dwd@fnal.gov> 1.13-1
 - Disable kerberos reverse DNS lookup in order to work when the vault
   server is using a DNS alias.
