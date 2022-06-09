@@ -190,6 +190,7 @@ class _SslSocketWrapper(object):
 class CertValidatingHTTPSConnection(http_client.HTTPConnection):
     default_port = http_client.HTTPS_PORT
     ssl_timeout = 15
+    hostcache = {}
 
     def __init__(self, host, port, key_file=None, cert_file=None,
                  cert_chain_file=None, cafile=None, capath=None, **kwargs):
@@ -210,6 +211,17 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         oldtime = cls.ssl_timeout
         cls.ssl_timeout = time
         return oldtime
+
+    def setconntimeouts(self, sslconn, value):
+        if options.debug:
+            log("Setting timeout to %d" % value)
+        if "settimeout" in dir(SSL.Connection):
+            # this improves the error message when it is available
+            # from "Operation now in progress" to "timed out"
+            sslconn.settimeout(value)
+        timeout = SSL.timeout(value)
+        sslconn.set_socket_read_timeout(timeout)
+        sslconn.set_socket_write_timeout(timeout)
 
     def connect(self):
         # 'sslv23' actually means to accept all, then we turn off
@@ -243,20 +255,89 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         #   openssl ciphers -v.
         if context.set_cipher_list('DEFAULT:!eNULL:!aNULL:!ADH:!EXP:!LOW:!MD5:!IDEA:!RC4:@STRENGTH') != 1:
             fatal("No valid ciphers")
-        sslconn = SSL.Connection(context)
-        if "settimeout" in dir(SSL.Connection):
-            # this improves the error message when it is available
-            # from "Operation now in progress" to "timed out"
-            sslconn.settimeout(self.ssl_timeout)
-        timeout = SSL.timeout(self.ssl_timeout)
-        sslconn.set_socket_read_timeout(timeout)
-        sslconn.set_socket_write_timeout(timeout)
-        try:
-            sslconn.connect((self.host, self.port))
-        except SSL.Checker.WrongHost as e:
-            if vaulthostname is None or 'DNS:'+vaulthostname+',' not in e.actualHost+',':
-                e.expectedHost = e.expectedHost + ' or ' + vaulthostname
-                raise e
+
+        ips = []
+        firsttry = False
+        if self.host in self.hostcache:
+            ips = self.hostcache[self.host]
+        else:
+            firsttry = True
+            try:
+                info = socket.getaddrinfo(self.host, 0, 0, socket.IPPROTO_TCP)
+            except Exception as e:
+                efatal("getting address info for %s failed" % self.host, e)
+            
+            # prefer IPV4
+            for tuple in info:
+                if tuple[0] == socket.AF_INET:
+                    ips.append(tuple[4][0])
+            for tuple in info:
+                if tuple[0] == socket.AF_INET6:
+                    ips.append(tuple[4][0])
+
+            self.hostcache[self.host] = ips
+
+        if options.debug:
+            log("IP addresses for %s: %s" % (self.host, str(ips)))
+
+        sslconn = None
+        lastexcept = None
+        lastip = None
+
+        numips = len(ips)
+        for idx in range(numips):
+            ip = ips[idx]
+            sslconn = SSL.Connection(context)
+            # set connection timeouts to just 5 seconds
+            self.setconntimeouts(sslconn, 5)
+            try:
+                if options.debug or (firsttry and options.verbose and idx == 0 and numips > 1):
+                    log("Connecting to %s" % ip)
+                sslconn.connect((ip, self.port))
+            except SSL.Checker.WrongHost as e:
+                # Since we are passing IP address this happens after
+                # every successful connection
+                if 'DNS:'+self.host+',' not in e.actualHost+',':
+                    if vaulthostname is None:
+                        raise e
+                    elif 'DNS:'+vaulthostname+',' not in e.actualHost+',':
+                        e.expectedHost = e.expectedHost + ' or ' + vaulthostname
+                        raise e
+            except Exception as e:
+                if options.debug:
+                    elog("Connect attempt to %s port %d failed" % (ip, self.port), e)
+                valid_family = False
+                if type(e) != socket.gaierror or e.args[0] != socket.EAI_ADDRFAMILY:
+                    # Don't show "Address family for host name not supported"
+                    #  when not in debug; it probably means means IPv6 (or
+                    #  IPv4) is not available on the client
+                    valid_family = True
+                    lastexcept = e
+                    lastip = ip
+                if idx < numips - 1:
+                    if options.verbose and valid_family:
+                        msg = str(e)
+                        if len(e.args) > 1:
+                            msg = e.args[1]
+                        log("Connect to %s failed (%s), trying %s" % (ip, msg, ips[idx+1]))
+                else:
+                    if lastexcept != None:
+                        e = lastexcept
+                        ip = lastip
+                    efatal("Connect to %s (%s) failed" % (self.host, ip), e)
+                sslconn.close()
+                continue
+
+            if options.debug:
+                log("Connect to %s succeeded" % self.host)
+            # connect succeeded
+            if idx > 0:
+                # delete failed ip addresses from the host cache
+                self.hostcache[self.host] = ips[idx:]
+            break
+
+        # set post-connection timeouts
+        self.setconntimeouts(sslconn, self.ssl_timeout)
 
         self.sock = _SslSocketWrapper(sslconn)
 
