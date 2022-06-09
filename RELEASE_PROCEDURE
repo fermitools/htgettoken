@@ -2,7 +2,8 @@
 2. Update the version in htgettoken.spec and add a changelog entry.
 3. If the download_version definition in htgettoken.spec has changed,
     run make-downloads.
-4. Run 'make' to update html version of man page.
+4. Run 'make' to update html version of man page if the man page source
+    has changed.
 5. Commit all changes into git, turn them into a pull request, and 
     merge the pull request.
 6. Do the following commands where X.Y is the version:

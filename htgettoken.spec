@@ -1,8 +1,8 @@
-%define downloads_version 1.6
+%define downloads_version 1.7
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.12
+Version: 1.13
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -108,6 +108,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Jun  9 2022 Dave Dykstra <dwd@fnal.gov> 1.13-1
+- Disable kerberos reverse DNS lookup in order to work when the vault
+  server is using a DNS alias.
+- Intelligently handle multiple IP addresses in a DNS name, timing out
+  connection attempts after 5 seconds and not reusing addresses that
+  failed to connect.  Tries IPv4 before IPv6.
+- Update python dependencies to current versions in pip.
+
 * Mon May 23 2022 Dave Dykstra <dwd@fnal.gov> 1.12-1
 - Update htgettoken to allow utf-8 characters in messages.
 
