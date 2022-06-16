@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.14
+Version: 1.15
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -122,10 +122,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Revert to prior method for allowing --vaultalias as an alternate name
-#   for matching the host cert.  It doesn't support wildcard certs, but
-#   it permits allowing either the original host name or the alias and
-#   avoids needing separate alias options for kerberos and https.
+* Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.15-1
+- Revert to prior method for allowing --vaultalias as an alternate name
+  for matching the host cert.  It doesn't support wildcard certs, but it
+  permits allowing either the original host name or the alias and avoids
+  needing separate alias options for kerberos and https.
 
 * Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.14-1
 - Support wildcard host certs for all https connections.  They used to be
