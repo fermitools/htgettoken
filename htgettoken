@@ -17,7 +17,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.14"
+version = "1.15"
 
 import os
 import sys
@@ -298,14 +298,24 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
                 #  m2crypto also correctly matches wildcard certs.
                 checkfunc = sslconn.clientPostConnectionCheck
                 def overridecheck(cert, ip):
-                    name = self.host
-                    if vaulthostname is not None:
-                        name = vaulthostname
                     if options.debug:
-                        log("Verifying host cert for %s against host name %s" % (ip, name))
-                    return checkfunc(cert, name)
+                        log("Verifying host cert for %s against host name %s" % (ip, self.host))
+                    return checkfunc(cert, self.host)
                 sslconn.clientPostConnectionCheck = overridecheck
                 sslconn.connect((ip, self.port))
+            except SSL.Checker.WrongHost as e:
+                # Also allow the vaultalias, although this doesn't work
+                #  with wildcard host certs.  The vaultalias is also used
+                #  for the kerberos cluster name, so checking it after an
+                #  exception like this avoids having to have separate
+                #  options for kerberos and https aliases.
+                if vaulthostname is None:
+                    raise e
+                elif 'DNS:'+vaulthostname+',' not in e.actualHost+',':
+                    e.expectedHost = e.expectedHost + ' or ' + vaulthostname
+                    raise e
+                if options.debug:
+                    log("Host cert didn't allow %s but matched %s" % (e.expectedHost, vaulthostname))
             except Exception as e:
                 if options.debug:
                     elog("Connect attempt to %s port %d failed" % (ip, self.port), e)
