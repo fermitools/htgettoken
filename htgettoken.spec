@@ -122,6 +122,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Support wildcard host certs for all https connections.  They used to be
+#   supported for everything but the --vaultalias option but that support 
+#   was broken in version 1.13. 
+
 * Thu Jun  9 2022 Dave Dykstra <dwd@fnal.gov> 1.13-2
 - Suppress python warnings in order to avoid CryptographyDeprecationWarning
   about python3.6 being deprecated.

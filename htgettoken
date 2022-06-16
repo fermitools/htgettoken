@@ -293,16 +293,19 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
             try:
                 if options.debug or (firsttry and options.verbose and idx == 0 and numips > 1):
                     log("Connecting to %s" % ip)
+                # Insert the expected host name back into the host name check.
+                # This is better then checking the SANs after the fact because
+                #  m2crypto also correctly matches wildcard certs.
+                checkfunc = sslconn.clientPostConnectionCheck
+                def overridecheck(cert, ip):
+                    name = self.host
+                    if vaulthostname is not None:
+                        name = vaulthostname
+                    if options.debug:
+                        log("Verifying host cert for %s against host name %s" % (ip, name))
+                    return checkfunc(cert, name)
+                sslconn.clientPostConnectionCheck = overridecheck
                 sslconn.connect((ip, self.port))
-            except SSL.Checker.WrongHost as e:
-                # Since we are passing IP address this happens after
-                # every successful connection
-                if 'DNS:'+self.host+',' not in e.actualHost+',':
-                    if vaulthostname is None:
-                        raise e
-                    elif 'DNS:'+vaulthostname+',' not in e.actualHost+',':
-                        e.expectedHost = e.expectedHost + ' or ' + vaulthostname
-                        raise e
             except Exception as e:
                 if options.debug:
                     elog("Connect attempt to %s port %d failed" % (ip, self.port), e)
