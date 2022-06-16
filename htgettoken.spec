@@ -2,8 +2,8 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.13
-Release: 2%{?dist}
+Version: 1.14
+Release: 1%{?dist}
 License: BSD
 Group: Applications/System
 URL: https://github.com/fermitools/htgettoken
@@ -122,6 +122,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.14-1
+- Support wildcard host certs for all https connections.  They used to be
+  supported for everything but the --vaultalias option but that support 
+  was broken in version 1.13. 
+
 * Thu Jun  9 2022 Dave Dykstra <dwd@fnal.gov> 1.13-2
 - Suppress python warnings in order to avoid CryptographyDeprecationWarning
   about python3.6 being deprecated.
