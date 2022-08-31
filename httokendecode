@@ -47,19 +47,18 @@ human_dates() {
     local date
 
     for wrd in "$@"; do
-        echo "$wrd" | grep -iE '{|}|"'
-        if [ "$?" -ne 0 ]; then
-            w1=$(echo "$wrd" | sed -e s'/,//')
-            if echo "$w1" | grep -q "[0-9]"; then
-               w1="@$w1"
-               date="$(date --date=$w1)"
-               echo "\"$date\""
-               if echo "$wrd" | grep -q ',' ; then
-                   echo ','
-               fi
+        w1=${wrd/,/}
+        if [[ "$w1" =~ ^[0-9]+$ ]]; then
+            # field is entirely numeric
+            echo -n "\"$(date --date=@$w1)\""
+            if [ "$wrd" != "$w1" ]; then
+                # add the comma back
+                echo ','
             else
-                echo "$wrd"
+                echo
             fi
+        else
+            echo "$wrd"
         fi
     done
 }
