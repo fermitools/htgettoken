@@ -122,6 +122,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# Fix httokendecode -H functionality to only attempt to convert a parsed word
+# if it is entirely numeric, not if it just contains one digit.  At the same
+# time, rewrite the functionality in native bash instead of using grep and sed.
+
 * Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.15-1
 - Revert to prior method for allowing --vaultalias as an alternate name
   for matching the host cert.  It doesn't support wildcard certs, but it
