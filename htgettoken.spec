@@ -104,7 +104,9 @@ cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 #!/bin/bash
 exec %{_libexecdir}/%{name}/%{name} "$@"
 !EOF!
+cp htdestroytoken $RPM_BUILD_ROOT%{_bindir}
 cp httokendecode $RPM_BUILD_ROOT%{_bindir}
+ln -s httokendecode $RPM_BUILD_ROOT%{_bindir}/htdecodetoken
 chmod +x $RPM_BUILD_ROOT%{_bindir}/*
 gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
 
@@ -125,6 +127,8 @@ rm -rf $RPM_BUILD_ROOT
 # Fix httokendecode -H functionality to only attempt to convert a parsed word
 # if it is entirely numeric, not if it just contains one digit.  At the same
 # time, rewrite the functionality in native bash instead of using grep and sed.
+# Add htdestroytoken command.
+# Add a symlink htdecodetoken pointing to httokendecode.
 
 * Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.15-1
 - Revert to prior method for allowing --vaultalias as an alternate name
