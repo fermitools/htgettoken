@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.15
+Version: 1.16
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -124,11 +124,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# Fix httokendecode -H functionality to only attempt to convert a parsed word
-# if it is entirely numeric, not if it just contains one digit.  At the same
-# time, rewrite the functionality in native bash instead of using grep and sed.
-# Add htdestroytoken command.
-# Add a symlink htdecodetoken pointing to httokendecode.
+* Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
+- Fix httokendecode -H functionality to only attempt to convert a parsed word
+  if it is entirely numeric, not if it just contains one digit.  At the same
+  time, rewrite the functionality in native bash instead of using grep and sed.
+- Add htdestroytoken command.
+- Add a symlink htdecodetoken pointing to httokendecode.
 
 * Thu Jun 16 2022 Dave Dykstra <dwd@fnal.gov> 1.15-1
 - Revert to prior method for allowing --vaultalias as an alternate name
