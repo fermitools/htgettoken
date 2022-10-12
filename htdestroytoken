@@ -1,0 +1,25 @@
+#!/bin/bash
+
+VERBOSE=true
+if [ "$1" = "-q" ]; then
+    VERBOSE=false
+    shift
+fi
+
+if [ $# != 0 ]; then
+    echo "Usage: htdestroytoken [-q]" >&2
+    echo "Removes bearer and vault tokens" >&2
+    echo "-q means to do it silently" >&2
+    exit 2
+fi
+
+# UID is a standard bash variable
+TOKENFILE="${BEARER_TOKEN_FILE:-${XDG_RUNTIME_DIR:-/tmp}/bt_u$UID}"
+for FILE in $TOKENFILE /tmp/vt_u$UID*; do
+    if [ -f "$FILE" ]; then
+        if $VERBOSE; then
+            echo "Removing $FILE"
+        fi
+        rm -f $FILE
+    fi
+done
