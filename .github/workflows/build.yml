@@ -1,0 +1,183 @@
+name: Build and test
+
+on:
+  # run workflows on main master and release/** branches
+  push:
+    branches:
+      - main
+      - master
+      - release/**
+  # run workflows on pull requests against the same branches
+  pull_request:
+    branches:
+      - main
+      - master
+      - release/**
+
+# automatically cancel redundant builds
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -- RPM builds --
+
+  # Build the Source RPM
+  rhel-srpm:
+    name: EL ${{ matrix.version }} (${{ matrix.distro }}) source package
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build for CentOS 7, and Rockylinux >=8
+        include:
+          - distro: centos
+            version: 7
+          - distro: rockylinux
+            version: 8
+          - distro: rockylinux
+            version: 9
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro }}:${{ matrix.version }}
+    steps:
+      - name: Get source code
+        uses: actions/checkout@v2
+
+      - name: Configure SRPM build tools
+        run: |
+          yum -y install \
+              gcc \
+              make \
+              python-srpm-macros \
+              rpm-build \
+              yum-utils \
+          ;
+
+      # on RL9 SWIG is provided via 'CRB'
+      - name: Enable CRB (Rocky Linux >=9)
+        if: matrix.version >= 9
+        run: |
+          dnf install "dnf-command(config-manager)"
+          dnf config-manager --set-enabled crb
+
+      # we need to install a few build dependencies to support
+      # make-downloads, these are listed in the spec file
+      - name: Install build dependencies
+        run: yum-builddep -y htgettoken.spec
+
+      - name: Create distributions
+        run: make sources
+
+      - name: Create source package
+        run: |
+          rpmbuild \
+              --define "_sourcedir $(pwd)" \
+              --define "_srcrpmdir $(pwd)" \
+              -bs \
+              htgettoken.spec
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: srpm-${{ matrix.distro }}-${{ matrix.version }}
+          path: "*.src.rpm"
+          if-no-files-found: error
+
+  # Build the binary RPM(s)
+  rhel-rpm:
+    name: EL ${{ matrix.version }} (${{ matrix.distro }}) binary package(s)
+    needs:
+      - rhel-srpm
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build for CentOS 7, and Rockylinux >=8
+        include:
+          - distro: centos
+            version: 7
+          - distro: rockylinux
+            version: 8
+          - distro: rockylinux
+            version: 9
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro }}:${{ matrix.version }}
+    steps:
+      - name: Download SRPM
+        uses: actions/download-artifact@v2
+        with:
+          name: srpm-${{ matrix.distro }}-${{ matrix.version }}
+
+      - name: Install build tools
+        run: |
+          yum -y -q install rpm-build yum-utils
+
+      # on RL9 SWIG is provided via 'CRB'
+      - name: Enable CRB (Rocky Linux >=9)
+        if: matrix.version >= 9
+        run: |
+          dnf install "dnf-command(config-manager)"
+          dnf config-manager --set-enabled crb
+
+      - name: Install build dependencies
+        run: yum-builddep -y htgettoken-*.src.rpm
+
+      - name: List installed packages
+        run: yum list installed
+
+      - name: Build binary packages
+        run: |
+          rpmbuild --rebuild --define "_rpmdir $(pwd)" htgettoken-*.src.rpm
+          rm -f *.src.rpm
+          mv */*.rpm .
+
+      - name: Print package info
+        run: |
+          # print contents of packages
+          for rpmf in *.rpm; do
+              echo "===== ${rpmf} ======="
+              rpm --query --package "${rpmf}" --info
+              echo "----- Files: --------"
+              rpm --query --package "${rpmf}" --list
+              echo "----- Provides: -----"
+              rpm --query --package "${rpmf}" --provides
+              echo "----- Requires: -----"
+              rpm --query --package "${rpmf}" --requires
+          done
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: rpm-${{ matrix.distro }}-${{ matrix.version }}
+          path: "*.rpm"
+          if-no-files-found: error
+
+  # Install the binary RPM(s) and sanity check
+  rhel-install:
+    name: EL ${{ matrix.version }} (${{ matrix.distro }}) install test
+    needs:
+      - rhel-rpm
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build for CentOS 7, and Rockylinux >=8
+        include:
+          - distro: centos
+            version: 7
+          - distro: rockylinux
+            version: 8
+          - distro: rockylinux
+            version: 9
+    runs-on: ubuntu-latest
+    container: ${{ matrix.distro }}:${{ matrix.version }}
+    steps:
+      - name: Download RPMs
+        uses: actions/download-artifact@v2
+        with:
+          name: rpm-${{ matrix.distro }}-${{ matrix.version }}
+
+      - name: Configure EPEL (EL7)
+        if: matrix.version < 8
+        run: yum -y install epel-release
+
+      - name: Install RPMs
+        run: yum -y install *.rpm
+
+      - name: Test htgettoken
+        run: /usr/bin/htgettoken --help

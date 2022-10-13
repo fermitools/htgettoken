@@ -1,0 +1,80 @@
+name: Python tests
+
+on:
+  push:
+    branches:
+      - gha-test
+      - main
+      - master
+      - release/**
+  pull_request:
+    branches:
+      - gha-test
+      - main
+      - master
+      - release/**
+
+jobs:
+  python:
+    # -- Python tests --
+    #
+    # This job tests the basic functionality
+    # of htgettoken.
+    #
+    # We use conda/mamba to install the requirements
+    # to avoid having to compile M2Crypto and/or pyOpenSSL
+    # on-the-fly
+    #
+
+    name: Python ${{ matrix.python-version }} (${{ matrix.os }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macOS
+          - Ubuntu
+        python-version:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+    runs-on: ${{ matrix.os }}-latest
+    defaults:
+      run:
+        # this is needed for conda environments to activate automatically
+        shell: bash -el {0}
+    steps:
+      - name: Get source code
+        uses: actions/checkout@v2
+
+      - name: Configure conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: test
+          miniforge-variant: Mambaforge
+          python-version: ${{ matrix.python-version }}
+          use-mamba: true
+
+      - name: Install requirements
+        run: |
+          mamba install --name test \
+              m2crypto \
+              paramiko \
+              pyopenssl \
+          ;
+
+      - name: Install pykerberos (Unix)
+        if: matrix.os != 'Windows'
+        run: mamba install --name test pykerberos
+
+      - name: Install winkerberos (Windows)
+        if: matrix.os == 'Windows'
+        run: mamba install --name test winkerberos
+
+      - name: List installed packages
+        run: mamba list --name test
+
+      - name: Test htgettoken
+        run: ./htgettoken --help
