@@ -17,6 +17,7 @@ BuildRequires: python3-pip
 BuildRequires: python3-devel
 # swig and openssl-devel are needed to prevent an M2Crypto problem with
 #   OpenSSL 1.1
+BuildRequires: gcc
 BuildRequires: swig
 BuildRequires: openssl-devel
 
