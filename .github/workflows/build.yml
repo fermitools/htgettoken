@@ -45,24 +45,11 @@ jobs:
       - name: Configure SRPM build tools
         run: |
           yum -y install \
-              gcc \
               make \
               python-srpm-macros \
               rpm-build \
               yum-utils \
           ;
-
-      # on RL9 SWIG is provided via 'CRB'
-      - name: Enable CRB (Rocky Linux >=9)
-        if: matrix.version >= 9
-        run: |
-          dnf install "dnf-command(config-manager)"
-          dnf config-manager --set-enabled crb
-
-      # we need to install a few build dependencies to support
-      # make-downloads, these are listed in the spec file
-      - name: Install build dependencies
-        run: yum-builddep -y htgettoken.spec
 
       - name: Create distributions
         run: make sources
@@ -105,16 +92,16 @@ jobs:
         with:
           name: srpm-${{ matrix.distro }}-${{ matrix.version }}
 
+      - name: Configure EPEL
+        run: yum -y install epel-release
+
       - name: Install build tools
         run: |
-          yum -y -q install rpm-build yum-utils
-
-      # on RL9 SWIG is provided via 'CRB'
-      - name: Enable CRB (Rocky Linux >=9)
-        if: matrix.version >= 9
-        run: |
-          dnf install "dnf-command(config-manager)"
-          dnf config-manager --set-enabled crb
+          yum -y -q install \
+              epel-rpm-macros \
+              rpm-build \
+              yum-utils \
+          ;
 
       - name: Install build dependencies
         run: yum-builddep -y htgettoken-*.src.rpm
@@ -172,8 +159,7 @@ jobs:
         with:
           name: rpm-${{ matrix.distro }}-${{ matrix.version }}
 
-      - name: Configure EPEL (EL7)
-        if: matrix.version < 8
+      - name: Configure EPEL
         run: yum -y install epel-release
 
       - name: Install RPMs
