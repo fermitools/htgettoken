@@ -21,6 +21,10 @@ BuildRequires: gcc
 BuildRequires: krb5-devel
 BuildRequires: swig
 BuildRequires: openssl-devel
+# for python-gssapi >= 1.8.0 (Python >=3.7)
+%if 0%{?rhel} >= 9
+BuildRequires: python3-Cython
+%endif
 
 # Needed by httokendecode
 Requires: jq
