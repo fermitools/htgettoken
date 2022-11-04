@@ -16,7 +16,7 @@ PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
 pip3 $PIPOPTS "pyinstaller<5.0"
 pip3 $PIPOPTS m2crypto
 pip3 $PIPOPTS pyOpenSSL
-pip3 $PIPOPTS kerberos
+pip3 $PIPOPTS gssapi
 pip3 $PIPOPTS paramiko
 pip3 $PIPOPTS wheel
 tar czvf $BASE.tar.gz $BASE
