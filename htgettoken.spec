@@ -4,126 +4,67 @@ Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 1.16
 Release: 1%{?dist}
-License: BSD
-Group: Applications/System
+
+License: BSD-3-Clause
 URL: https://github.com/fermitools/htgettoken
+
+BuildArch: noarch
+Prefix: %{_prefix}
+
 # download with:
 # $ curl -o htgettoken-%{version}.tar.gz \
 #    https://codeload.github.com/fermitools/htgettoken/tar.gz/%{version}
 Source0: %{name}-%{version}.tar.gz
-# recreate this with make-downloads
-Source1: %{name}-downloads-%{downloads_version}.tar.gz
-BuildRequires: python3-pip
-BuildRequires: python3-devel
-# swig and openssl-devel are needed to prevent an M2Crypto problem with
-#   OpenSSL 1.1
-BuildRequires: gcc
-BuildRequires: krb5-devel
-BuildRequires: swig
-BuildRequires: openssl-devel
 
-# Needed by httokendecode
+# rpmbuild dependencies
+BuildRequires: python-rpm-macros
+
+# -- Package: htgettoken
+
+# /usr/bin/htgettoken:
+Requires: python%{python3_pkgversion}-kerberos
+Requires: python%{python3_pkgversion}-paramiko
+Requires: python%{python3_pkgversion}-urllib3
+# /usr/bin/httokendecode:
 Requires: jq
+%if 0%{?rhel} && 0%{?rhel} >= 8
+Recommends: scitokens-cpp
+%endif
 
 %description
 htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 
-# set nil out debug_package here to avoid stripping
-%global debug_package %{nil}
+%files
+%license COPYING
+%doc README.md
+%{_bindir}/*
+%{_datadir}/man/man1/%{name}*
 
-# eliminate .buid-id links on el8, they make python packages clash
-%global _build_id_links none
+# -- build steps
 
 %prep
-%setup -q
-%setup -q -T -b 1 -n %{name}-downloads-%{downloads_version}
-
-%build
-# starts out in htgettoken-downloads
-
-set -e
-PYDIR=$PWD/.local
-PATH=$PYDIR/bin:$PATH
-
-# install in reverse order of their download (because dependency downloads
-#   come after requested packages)
-PKGS="$(tar tf %{SOURCE1} |sed 's,^%{name}-downloads-[^/]*/,,'| grep -v "^\.local"| tac)"
-# installing wheel separately first eliminates warnings about falling back
-#   to setup.py
-WHEELPKG="$(echo "$PKGS"|grep ^wheel)"
-PKGS="$(echo "$PKGS"|grep -v ^wheel|paste -sd ' ')"
-# --no-build-isolation is needed for offline build of pyinstaller as per
-#  https://github.com/pyinstaller/pyinstaller/issues/4557
-# python3 is explicitly invoked here so it comes from $PATH to test
-#   various versions
-HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $WHEELPKG
-export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
-HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $PKGS
-
-cd ../%{name}-%{version}
-
-PYIOPTS="--noconsole --log-level=WARN"
-python3 $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
-
-# Exclude system libraries from the bundle as documented at
-#  https://pyinstaller.readthedocs.io/en/stable/spec-files.html#posix-specific-options
-awk '
-    {if ($1 == "pyz") print "a.exclude_system_libraries()"}
-    {print}
-' dist/%{name}.spec >dist/%{name}-lesslibs.spec
-
-# Also disable warnings beause of CryptographyDeprecationWarning on python3.6
-# following hint at https://stackoverflow.com/a/57766145/10457761
-awk '{
-    if ($3 == "EXE(pyz,") {
-        print
-        getline
-        print
-        getline
-        sub("\\[","[('\''W ignore'\'', None, '\''OPTION'\'')")
-    }
-    print
-}' dist/%{name}-lesslibs.spec >dist/%{name}-lesslibsandwarn.spec
-
-python3 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibsandwarn.spec
-
-find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
-
+%autosetup -n %{name}-%{version}
 
 %install
-# starts out in htgettoken-downloads
-cd ../%{name}-%{version}
+# install scripts
+mkdir -p %{buildroot}%{_bindir}
+install -p -m 755 -t %{buildroot}%{_bindir} \
+	htdestroytoken \
+	htgettoken \
+	httokendecode \
+;
 
-rm -rf $RPM_BUILD_ROOT
+# link htdecodetoken to httokendecode
+(cd %{buildroot}%{_bindir}/; ln -s httokendecode htdecodetoken)
 
-mkdir -p $RPM_BUILD_ROOT%{_bindir}
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/man/man1
-mkdir -p $RPM_BUILD_ROOT%{_libexecdir}/%{name}
-cp -r dist/%{name} $RPM_BUILD_ROOT%{_libexecdir}
-# somehow through this cp process some files can become non-readable, repair
-find $RPM_BUILD_ROOT%{_libexecdir} ! -perm -400|xargs -rt chmod a+r
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
-#!/bin/bash
-exec %{_libexecdir}/%{name}/%{name} "$@"
-!EOF!
-cp htdestroytoken $RPM_BUILD_ROOT%{_bindir}
-cp httokendecode $RPM_BUILD_ROOT%{_bindir}
-ln -s httokendecode $RPM_BUILD_ROOT%{_bindir}/htdecodetoken
-chmod +x $RPM_BUILD_ROOT%{_bindir}/*
-gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
-
-# extend read and execute permissions to all users
-find $RPM_BUILD_ROOT ! -perm -4|xargs -rt chmod a+r
-find $RPM_BUILD_ROOT -perm -100 ! -perm -1|xargs -rt chmod a+x
+# install man page(s)
+mkdir -p %{buildroot}%{_datadir}/man/man1
+gzip -c %{name}.1 >%{buildroot}%{_datadir}/man/man1/%{name}.1.gz
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%files
-%{_bindir}/*
-%{_libexecdir}/%{name}
-%{_datadir}/man/man1/%{name}*
-
+# -- changelog
 
 %changelog
 # - Replace use of m2crypto and pyOpenSSL with urllib3
