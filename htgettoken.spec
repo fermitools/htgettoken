@@ -22,7 +22,7 @@ BuildRequires: python-rpm-macros
 # -- Package: htgettoken
 
 # /usr/bin/htgettoken:
-Requires: python%{python3_pkgversion}-kerberos
+Requires: python%{python3_pkgversion}-gssapi
 Requires: python%{python3_pkgversion}-paramiko
 Requires: python%{python3_pkgversion}-urllib3
 # /usr/bin/httokendecode:
