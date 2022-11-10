@@ -1,4 +1,4 @@
-%define downloads_version 1.7
+%define downloads_version 1.8
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
@@ -126,6 +126,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Replace use of m2crypto and pyOpenSSL with urllib3
+# - Add --vaultcertname option to specify an alternative certificate name.
+#   That used to be an additional optional meaning of the --vaultalias option,
+#   but urllib3 requires only one name to match.
+
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
   if it is entirely numeric, not if it just contains one digit.  At the same

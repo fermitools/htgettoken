@@ -60,9 +60,8 @@ jobs:
       - name: Install requirements
         run: |
           mamba install --name test \
-              m2crypto \
+              urllib3 \
               paramiko \
-              pyopenssl \
           ;
 
       - name: Install pykerberos (Unix)
