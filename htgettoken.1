@@ -69,16 +69,21 @@ otherwise the whole URL is used.  This is the only required option.
 .RE
 .TP
 .BR \-\-vaultalias=HostOrURL
-The vault server DNS alias name.  This is mainly useful for debugging,
+The vault cluster name.  This is mainly useful for debugging,
 for example when multiple vault servers in a cluster are serving the
-same alias name and the address of a single server is supplied with
+same name and the address of a single server is supplied with
 .IR \-\-vaultserver .
 The
 .I \-\-vaultalias
-is then used to verify that the service name of the vault server 
-matches this expected name.  Default is the same as
-.IR \-\-vaultserver ,
-and the same URL protocol and port are added if they are not supplied.
+is then used when communicating with the name defined in the cluster,
+for example for kerberos.  Default is the same as
+.IR \-\-vaultserver .
+.TP
+.BR \-\-vaultcertname=Host
+The vault https certficate name.  This is mainly useful when testing
+and the name in the host certificate does not match the name used to
+access the server.  Default is the same as the host name part of
+.IR \-\-vaultserver .
 .TP
 .BR \-i\ issuername , \ \-\-issuer=issuername
 The name of the OIDC token issuer, as configured in the vault server. 

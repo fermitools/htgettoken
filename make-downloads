@@ -14,8 +14,7 @@ PATH=$PWD/$BASE/.local/bin:$PATH
 export PYTHONPATH=`echo $PWD/$BASE/.local/lib/*/site-packages`
 PIPOPTS="download --no-cache-dir -d $PWD/$BASE"
 pip3 $PIPOPTS "pyinstaller<5.0"
-pip3 $PIPOPTS m2crypto
-pip3 $PIPOPTS pyOpenSSL
+pip3 $PIPOPTS urllib3
 pip3 $PIPOPTS kerberos
 pip3 $PIPOPTS paramiko
 pip3 $PIPOPTS wheel
