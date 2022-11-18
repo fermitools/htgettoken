@@ -3,7 +3,7 @@
 # htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 #
 # Nonstandard python libraries required:
-#  kerberos
+#  gssapi
 #  paramiko
 #  urllib3
 #
@@ -35,7 +35,7 @@ import signal
 import time
 import logging
 import secrets
-import kerberos
+import gssapi
 import paramiko
 from optparse import OptionParser
 import urllib3
@@ -118,7 +118,7 @@ def expandexception(e):
     if typ == 'GSSError':
         msg = typ + ':'
         for arg in e.args:
-            msg += ' ' + arg[0] + '.'
+            msg += ' ' + arg + '.'
     return msg
 
 # print exception type name and contents after fatal error message
@@ -810,14 +810,12 @@ def main():
                 os.environ["KRB5_CONFIG"] = cfgfile.name + ':' + krb5_config
             if options.debug:
                 log("Setting KRB5_CONFIG=" + os.getenv("KRB5_CONFIG"))
-            kcontext = None
+            kname = gssapi.Name(base=service, name_type=gssapi.NameType.hostbased_service)
+            kcontext = gssapi.SecurityContext(usage="initiate", name=kname)
+            kresponse = None
             try:
-                __, kcontext = kerberos.authGSSClientInit(service=service,
-                                    mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
-                                    principal=options.kerbprincipal)
-                kerberos.authGSSClientStep(kcontext, "")
+                kresponse = kcontext.step()
             except Exception as e:
-                kcontext = None
                 if krb5_config is None and (len(e.args) != 2 or \
                         len(e.args[1]) != 2 or 'expired' not in e.args[1][0]):
                     # Try again with the default KRB5_CONFIG because 
@@ -830,15 +828,13 @@ def main():
                     os.environ["KRB5_CONFIG"] = cfgfile.name + ":/etc/krb5.conf"
                     if options.debug:
                         log("Setting KRB5_CONFIG=" + os.getenv("KRB5_CONFIG"))
+                    kcontext = gssapi.SecurityContext(usage="initiate", name=kname)
                     try:
-                        __, kcontext = kerberos.authGSSClientInit(service=service,
-                                            mech_oid=kerberos.GSS_MECH_OID_SPNEGO,
-                                            principal=options.kerbprincipal)
-                        kerberos.authGSSClientStep(kcontext, "")
+                        kresponse = kcontext.step()
                     except Exception as e2:
-                        kcontext = None
+                        kresponse = None
                         e = e2
-                if kcontext is None:
+                if kresponse is None:
                     if options.verbose:
                         elog("Kerberos init failed", e)
                     elif showprogress:
@@ -846,8 +842,8 @@ def main():
 
             cfgfile.close()
 
-            if kcontext != None:
-                kerberostoken = kerberos.authGSSClientResponse(kcontext)
+            if kresponse != None:
+                kerberostoken = base64.b64encode(kresponse).decode()
                 if options.debug:
                     log("Kerberos token:", kerberostoken)
 

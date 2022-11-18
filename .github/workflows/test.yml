@@ -60,17 +60,10 @@ jobs:
       - name: Install requirements
         run: |
           mamba install --name test \
-              urllib3 \
               paramiko \
+              python-gssapi \
+              urllib3 \
           ;
-
-      - name: Install pykerberos (Unix)
-        if: matrix.os != 'Windows'
-        run: mamba install --name test pykerberos
-
-      - name: Install winkerberos (Windows)
-        if: matrix.os == 'Windows'
-        run: mamba install --name test winkerberos
 
       - name: List installed packages
         run: mamba list --name test
