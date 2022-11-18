@@ -68,6 +68,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 # - Replace use of m2crypto and pyOpenSSL with urllib3
+# - Replace use of pykerberos with gssapi
+# - Use standard Requires for Python modules instead of PyInstaller
 # - Add --vaultcertname option to specify an alternative certificate name.
 #   That used to be an additional optional meaning of the --vaultalias option,
 #   but urllib3 requires only one name to match.
