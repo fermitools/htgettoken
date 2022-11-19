@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 #
 # Nonstandard python libraries required:

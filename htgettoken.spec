@@ -76,6 +76,8 @@ rm -rf $RPM_BUILD_ROOT
 #   That used to be an additional optional meaning of the --vaultalias option,
 #   but urllib3 requires only one name to match.
 # - Add setuptools build infrastructure
+# - Refactor htgettoken script into module with entry point.
+#   This enables invoking htgettoken as `htgettoken.main()` from Python.
 
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
