@@ -98,10 +98,13 @@ jobs:
       - name: Install build tools
         run: |
           yum -y -q install \
-              epel-rpm-macros \
               rpm-build \
               yum-utils \
           ;
+
+      - name: Install epel-rpm-macros
+        if: matrix.version < 9
+        run: yum -y -q install epel-rpm-macros
 
       - name: Install build dependencies
         run: yum-builddep -y htgettoken-*.src.rpm

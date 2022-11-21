@@ -1,0 +1,3 @@
+include COPYING README.md MANIFEST.in
+include ht*.1
+include *.spec

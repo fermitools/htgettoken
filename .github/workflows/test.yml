@@ -3,13 +3,11 @@ name: Python tests
 on:
   push:
     branches:
-      - gha-test
       - main
       - master
       - release/**
   pull_request:
     branches:
-      - gha-test
       - main
       - master
       - release/**
@@ -21,10 +19,6 @@ jobs:
     # This job tests the basic functionality
     # of htgettoken.
     #
-    # We use conda/mamba to install the requirements
-    # to avoid having to compile M2Crypto and/or pyOpenSSL
-    # on-the-fly
-    #
 
     name: Python ${{ matrix.python-version }} (${{ matrix.os }})
 
@@ -34,39 +28,39 @@ jobs:
         os:
           - macOS
           - Ubuntu
+          - Windows
         python-version:
           - "3.6"
           - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
     runs-on: ${{ matrix.os }}-latest
-    defaults:
-      run:
-        # this is needed for conda environments to activate automatically
-        shell: bash -el {0}
     steps:
       - name: Get source code
         uses: actions/checkout@v2
 
-      - name: Configure conda
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
         with:
-          activate-environment: test
-          miniforge-variant: Mambaforge
           python-version: ${{ matrix.python-version }}
-          use-mamba: true
 
-      - name: Install requirements
-        run: |
-          mamba install --name test \
-              paramiko \
-              python-gssapi \
-              urllib3 \
-          ;
+      # install krb5-config for gssapi
+      # (this is needed because gssapi isn't installed from a wheel,
+      #  but from the tarball, boo)
+      - name: Install krb5-config for Linux
+        if: matrix.os == 'Ubuntu'
+        run: sudo apt-get -yqq update && sudo apt-get install -yqq libkrb5-dev
 
-      - name: List installed packages
-        run: mamba list --name test
+      - name: Install htgettoken
+        run: python -m pip install .
+
+      - name: Package list
+        run: python -m pip list installed
+
+      - name: Show htgettoken info
+        run: python -m pip show htgettoken
 
       - name: Test htgettoken
-        run: ./htgettoken --help
+        run: htgettoken --help
