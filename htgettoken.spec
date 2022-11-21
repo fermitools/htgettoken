@@ -22,7 +22,9 @@ BuildRequires: python3-rpm-macros
 
 # build dependencies
 BuildRequires: python3
+BuildRequires: python%{python3_pkgversion}-pip
 BuildRequires: python%{python3_pkgversion}-setuptools
+BuildRequires: python%{python3_pkgversion}-wheel
 
 # -- Package: htgettoken
 
@@ -52,11 +54,11 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %autosetup -n %{name}-%{version}
 
 %build
-%py3_build
+%py3_build_wheel
 
 %install
 # install the Python project
-%py3_install
+%py3_install_wheel %{name}-%{version}-*.whl
 # link htdecodetoken to httokendecode
 (cd %{buildroot}%{_bindir}/; ln -s httokendecode htdecodetoken)
 # install man page(s)
@@ -78,6 +80,8 @@ rm -rf $RPM_BUILD_ROOT
 # - Add setuptools build infrastructure
 # - Refactor htgettoken script into module with entry point.
 #   This enables invoking htgettoken as `htgettoken.main()` from Python.
+# - Use wheels to build/install Python package, which simplified the entry points
+#   and improves (slightly) the metadata
 
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
