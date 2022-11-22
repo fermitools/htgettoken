@@ -37,21 +37,26 @@ jobs:
           - "3.10"
           - "3.11"
     runs-on: ${{ matrix.os }}-latest
+    defaults:
+      run:
+        # this is needed for conda environments to activate automatically
+        shell: bash -el {0}
+
     steps:
       - name: Get source code
         uses: actions/checkout@v2
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Configure conda
+        uses: conda-incubator/setup-miniconda@v2
         with:
+          activate-environment: test
+          miniforge-variant: Mambaforge
           python-version: ${{ matrix.python-version }}
+          use-mamba: true
 
-      # install krb5-config for gssapi
-      # (this is needed because gssapi isn't installed from a wheel,
-      #  but from the tarball, boo)
-      - name: Install krb5-config for Linux
-        if: matrix.os == 'Ubuntu'
-        run: sudo apt-get -yqq update && sudo apt-get install -yqq libkrb5-dev
+      # install krb5 for gssapi
+      - name: Install krb5
+        run: mamba install krb5
 
       - name: Install htgettoken
         run: python -m pip install .
