@@ -92,6 +92,13 @@ jobs:
         with:
           name: srpm-${{ matrix.distro }}-${{ matrix.version }}
 
+      # on RL9 python3-wheel is provided via 'CRB'
+      - name: Enable CRB (Rocky Linux >=9)
+        if: matrix.version >= 9
+        run: |
+          dnf -y -q install "dnf-command(config-manager)"
+          dnf config-manager --set-enabled crb
+
       - name: Configure EPEL
         run: yum -y install epel-release
 
