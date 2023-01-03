@@ -113,10 +113,10 @@ def usage(parser, msg):
     sys.exit(2)
 
 
-def fatal(msg, code=1):
+def fatal(msg, code=1, quiet=False):
     """Exit with a fatal error.
     """
-    if (options is None) or not options.quiet:
+    if not quiet:
         if showprogress:
             log()
         logerr(prog + ": " + msg)
@@ -135,10 +135,10 @@ def expandexception(e):
     return msg
 
 
-def efatal(msg, e, code=1):
+def efatal(msg, e, code=1, quite=False):
     """Print exception type name and contents after fatal error message.
     """
-    fatal(msg + ': ' + expandexception(e), code)
+    fatal(msg + ': ' + expandexception(e), code, quiet=quiet)
 
 
 def elog(msg, e):
@@ -270,17 +270,17 @@ def parseargs(parser, argv):
         options.capath = os.getenv('X509_CERT_DIR') or defaults['capath']
 
 
-def getVaultToken(vaulttokensecs, response):
+def getVaultToken(vaulttokensecs, response, quiet=False):
     """Either extract the vault token from an auth response or exchange
     it for another one if either the lease_duration is too long or it
     includes an sshregister policy.
     """
     if 'auth' not in response:
-        fatal("no 'auth' in response from %s" % vaultserver)
+        fatal("no 'auth' in response from %s" % vaultserver, quiet=quiet)
     auth = response['auth']
 
     if 'client_token' not in auth:
-        fatal("no 'client_token' in response from %s" % vaultserver)
+        fatal("no 'client_token' in response from %s" % vaultserver, quiet=quiet)
     vaulttoken = auth['client_token']
 
     policies = None
@@ -313,7 +313,7 @@ def getVaultToken(vaulttokensecs, response):
     try:
         resp = vault.request(path, headers=headers, data=json.dumps(data).encode())
     except Exception as e:
-        efatal("getting vault token from %s failed" % url, e)
+        efatal("getting vault token from %s failed" % url, e, quiet=quiet)
     body = resp.data.decode()
     if options.debug:
         log("##### Begin vault token response")
@@ -322,13 +322,13 @@ def getVaultToken(vaulttokensecs, response):
     try:
         response = json.loads(body)
     except Exception as e:
-        efatal("decoding response from %s failed" % url, e)
+        efatal("decoding response from %s failed" % url, e, quiet=quiet)
     if 'auth' in response and 'client_token' in response['auth']:
         return response['auth']['client_token']
-    fatal("no vault token in response from %s" % url)
+    fatal("no vault token in response from %s" % url, quiet=quiet)
 
 
-def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
+def checkVaultMinsecs(vaulttoken, vaulttokenminsecs, quiet=False):
     """Check for a minimum number of seconds remaining in vault token
 
     Return True if there's enough time remaining, else False.
@@ -352,9 +352,9 @@ def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
     try:
         response = json.loads(body)
     except Exception as e:
-        efatal("decoding response from %s failed" % url, e)
+        efatal("decoding response from %s failed" % url, e, quiet=quiet)
     if 'data' not in response or 'ttl' not in response['data']:
-        fatal("ttl missing from lookup-self response")
+        fatal("ttl missing from lookup-self response", quiet=quiet)
 
     ttl = response['data']['ttl']
     if options.verbose:
@@ -364,7 +364,7 @@ def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
     return False
 
 
-def getBearerToken(vaulttoken, vaultpath):
+def getBearerToken(vaulttoken, vaultpath, quiet=False):
     """Read a bearer token from vault.
     """
     if options.showbearerurl:
@@ -403,7 +403,7 @@ def getBearerToken(vaulttoken, vaultpath):
     try:
         response = json.loads(body)
     except Exception as e:
-        efatal("decoding response from %s failed" % url, e)
+        efatal("decoding response from %s failed" % url, e, quiet=quiet)
     if 'data' in response and 'access_token' in response['data']:
         if showprogress:
             log(" succeeded")
@@ -416,7 +416,7 @@ def isDevFile(file):
     return file.startswith("/dev/std") or file.startswith("/dev/fd")
 
 
-def writeTokenSafely(tokentype, token, outfile):
+def writeTokenSafely(tokentype, token, outfile, quiet=False):
     """Safely write out a token to where it might be a world-writable
     directory, unless the output is a device file
     """
@@ -427,7 +427,7 @@ def writeTokenSafely(tokentype, token, outfile):
         try:
             handle = open(outfile, 'w')
         except Exception as e:
-            efatal("failure opening for write", e)
+            efatal("failure opening for write", e, quiet=quiet)
     else:
         if options.verbose or showprogress:
             log("Storing", tokentype, "token in", outfile)
@@ -443,13 +443,13 @@ def writeTokenSafely(tokentype, token, outfile):
                 prefix=os.path.dirname(outfile) + '/.' + prog)
             handle = os.fdopen(fd, 'w')
         except Exception as e:
-            efatal("failure creating file", e)
+            efatal("failure creating file", e, quiet=quiet)
         dorename = True
 
     try:
         handle.write(token + '\n')
     except Exception as e:
-        efatal("failure writing file", e)
+        efatal("failure writing file", e, quiet=quiet)
     handle.close()
 
     if dorename:
@@ -460,10 +460,10 @@ def writeTokenSafely(tokentype, token, outfile):
                 os.remove(outfile)
             except:
                 pass
-            efatal("failure renaming " + path + " to " + outfile, e)
+            efatal("failure renaming " + path + " to " + outfile, e, quiet=quiet)
 
 
-def ttl2secs(ttl, msg):
+def ttl2secs(ttl, msg, quiet=False):
     """Convert a time to live with trailing unit character into seconds.
     """
     # calculate ttl in seconds
@@ -471,7 +471,7 @@ def ttl2secs(ttl, msg):
     numpart = ttl[0:-1]
     failmsg = msg + " is not a number followed by s, m, h, or d"
     if not numpart.isnumeric():
-        fatal(failmsg)
+        fatal(failmsg, quiet=quiet)
     secs = int(numpart)
     if lastchr == 'd':
         secs *= 24
@@ -481,7 +481,7 @@ def ttl2secs(ttl, msg):
     elif lastchr == 'm':
         secs *= 60
     elif lastchr != 's':
-        fatal(failmsg)
+        fatal(failmsg, quiet=quiet)
     return secs
 
 
@@ -635,7 +635,7 @@ def main():
         try:
             resp = opthost.request(optparsed.path)
         except Exception as e:
-            efatal("fetch of options from %s failed" % optserver, e)
+            efatal("fetch of options from %s failed" % optserver, e, quiet=options.quiet)
         opts = resp.data.decode()
         opthost.close()
         if options.debug:
@@ -645,7 +645,7 @@ def main():
         try:
             serverargs = shlex.split(opts, True)
         except Exception as e:
-            efatal("parsing options from %s failed" % optserver, e)
+            efatal("parsing options from %s failed" % optserver, e, quiet=options.quiet)
 
         parseargs(parser, serverargs + envargs + sys.argv[1:])
 
@@ -662,15 +662,15 @@ def main():
         options.nossh = True
 
     # calculate vault token ttl and minttl in seconds
-    vaulttokensecs = ttl2secs(options.vaulttokenttl, "--vaulttokenttl")
+    vaulttokensecs = ttl2secs(options.vaulttokenttl, "--vaulttokenttl", quiet=options.quiet)
     # vault doesn't support the 'd' suffix to 'ttl' so always set it in seconds
     options.vaulttokenttl = str(vaulttokensecs) + 's'
 
     vaulttokenminsecs = 0
     if options.vaulttokenminttl is not None:
-        vaulttokenminsecs = ttl2secs(options.vaulttokenminttl, "--vaulttokenminttl")
+        vaulttokenminsecs = ttl2secs(options.vaulttokenminttl, "--vaulttokenminttl", quiet=options.quiet)
         if vaulttokenminsecs >= vaulttokensecs:
-            fatal("--vaulttokenminttl must be less than --vaulttokenttl")
+            fatal("--vaulttokenminttl must be less than --vaulttokenttl", quiet=options.quiet)
 
     # calculate defaults for options that are too complex for "default" keyword
     if options.outfile is None:
@@ -688,7 +688,7 @@ def main():
         else:
             options.vaulttokenfile = "/tmp/vt_u%uid"
     if vaulttokensecs > 1000000 and not isDevFile(options.vaulttokenfile):
-        fatal("--vaulttokenfile must be under /dev/ when --vaulttokenttl is greater than a million seconds")
+        fatal("--vaulttokenfile must be under /dev/ when --vaulttokenttl is greater than a million seconds", quiet=options.quiet)
 
     if options.vaulttokenfile != "/dev/stdout" and not options.showbearerurl:
         # switch log output to stdout if nothing else is using it
@@ -809,21 +809,21 @@ def main():
 
                     # construct fake "response" for getVaultToken
                     response = {'auth' : {'client_token': vaulttoken}}
-                    vaulttoken = getVaultToken(vaulttokensecs, response)
-                    writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                    vaulttoken = getVaultToken(vaulttokensecs, response, quiet=options.quiet)
+                    writeTokenSafely("vault", vaulttoken, vaulttokenfile, quiet=options.quiet)
                 elif vaulttokenminsecs > 0:
                     if options.verbose:
                         log("Making sure there is at least " + str(vaulttokenminsecs) + " seconds remaining")
                         log("  in vault token from", vaulttokeninfile)
 
-                    tryget = checkVaultMinsecs(vaulttoken, vaulttokenminsecs)
+                    tryget = checkVaultMinsecs(vaulttoken, vaulttokenminsecs, quiet=options.quiet)
             
                 if tryget:
                     if options.verbose and not options.nobearertoken:
                         log("Attempting to get bearer token from", vaultserver)
                         log("  using vault token from", vaulttokeninfile)
 
-                    bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+                    bearertoken = getBearerToken(vaulttoken, fullsecretpath, quiet=options.quiet)
             
         if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
@@ -904,7 +904,7 @@ def main():
                 except Exception as e:
                     if showprogress:
                         log(" failed")
-                    efatal("Kerberos negotiate with %s failed" % url, e)
+                    efatal("Kerberos negotiate with %s failed" % url, e, quiet=options.quiet)
 
                 body = resp.data.decode()
                 if options.debug:
@@ -915,15 +915,15 @@ def main():
                 if 'auth' in response and response['auth'] is not None:
                     if showprogress:
                         log(" succeeded")
-                    vaulttoken = getVaultToken(vaulttokensecs, response)
+                    vaulttoken = getVaultToken(vaulttokensecs, response, quiet=options.quiet)
                     if options.verbose:
                         log("Attempting to get bearer token from " + vaultserver)
 
-                    bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+                    bearertoken = getBearerToken(vaulttoken, fullsecretpath, quiet=options.quiet)
 
                     if bearertoken is not None:
                         # getting bearer token worked, write out vault token
-                        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                        writeTokenSafely("vault", vaulttoken, vaulttokenfile, quiet=options.quiet)
 
                 elif options.verbose:
                     log("Kerberos authentication failed")
@@ -943,7 +943,7 @@ def main():
             try:
                 agent = paramiko.Agent()
             except Exception as e:
-                efatal("Error checking for ssh-agent keys", e)
+                efatal("Error checking for ssh-agent keys", e, quiet=options.quiet)
             agent_keys = agent.get_keys()
             if len(agent_keys) == 0:
                 if options.verbose:
@@ -1023,20 +1023,20 @@ def main():
                     try:
                         response = json.loads(body)
                     except Exception as e:
-                        efatal("decoding response from %s failed" % vaultserver, e)
+                        efatal("decoding response from %s failed" % vaultserver, e, quiet=options.quiet)
 
                     if 'auth' in response and response['auth'] is not None:
                         if showprogress:
                             log(" succeeded")
-                        vaulttoken = getVaultToken(vaulttokensecs, response)
+                        vaulttoken = getVaultToken(vaulttokensecs, response, quiet=options.quiet)
                         if options.verbose:
                             log("Attempting to get bearer token from " + vaultserver)
 
-                        bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+                        bearertoken = getBearerToken(vaulttoken, fullsecretpath, quiet=options.quiet)
 
                         if bearertoken is not None:
                             # getting bearer token worked, write out vault token
-                            writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                            writeTokenSafely("vault", vaulttoken, vaulttokenfile, quiet=options.quiet)
 
                     elif options.verbose:
                         log("ssh-agent authentication failed")
@@ -1074,7 +1074,7 @@ def main():
         try:
             resp = vault.request(path, data=data.encode())
         except Exception as e:
-            efatal("Initiating authentication to %s failed" % vaultserver, e)
+            efatal("Initiating authentication to %s failed" % vaultserver, e, quiet=options.quiet)
         body = resp.data.decode()
         if options.debug:
             log("##### Begin vault initiate auth response")
@@ -1083,17 +1083,17 @@ def main():
         try:
             response = json.loads(body)
         except Exception as e:
-            efatal("decoding response from %s failed" % vaultserver, e)
+            efatal("decoding response from %s failed" % vaultserver, e, quiet=options.quiet)
 
         if 'data' not in response:
-            fatal("no 'data' in response from %s" % vaultserver)
+            fatal("no 'data' in response from %s" % vaultserver, quiet=options.quiet)
         data = response['data']
         if 'auth_url' not in data:
-            fatal("no 'auth_url' in data from %s" % vaultserver)
+            fatal("no 'auth_url' in data from %s" % vaultserver, quiet=options.quiet)
         auth_url = data['auth_url']
         del data['auth_url'] 
         if auth_url == "":
-            fatal("'auth_url' is empty in data from %s" % vaultserver)
+            fatal("'auth_url' is empty in data from %s" % vaultserver, quiet=options.quiet)
 
         log()
         log("Complete the authentication at:")
@@ -1157,7 +1157,7 @@ def main():
         while True:
             try:
                 if secswaited > 120:
-                    fatal("Polling for response took longer than 2 minutes")
+                    fatal("Polling for response took longer than 2 minutes", quiet=options.quiet)
                 if options.debug:
                     log("waiting for " + str(pollinterval) + " seconds")
                 time.sleep(pollinterval)
@@ -1171,7 +1171,7 @@ def main():
                 #  throwing an exception.
                 resp = vault.request(path, data=datastr.encode(), ignore_400=True)
             except Exception as e:
-                efatal("Authentication to %s failed" % vaultserver, e)
+                efatal("Authentication to %s failed" % vaultserver, e, quiet=options.quiet)
             body = resp.data.decode()
             if options.debug:
                 log("##### Begin vault auth response")
@@ -1180,13 +1180,13 @@ def main():
             try:
                 response = json.loads(body)
             except Exception as e:
-                efatal("decoding response from %s failed" % vaultserver, e)
+                efatal("decoding response from %s failed" % vaultserver, e, quiet=options.quiet)
             if 'errors' in response:
                 errors = response['errors']
                 if errors[0] == "slow_down":
                     pollinterval = pollinterval * 2
                 elif errors[0] != "authorization_pending":
-                    fatal("error in response from %s: %s" % (vaultserver, errors[0]))
+                    fatal("error in response from %s: %s" % (vaultserver, errors[0]), quiet=options.quiet)
                 if options.debug:
                     log("authorization pending, trying again")
             else:
@@ -1197,10 +1197,10 @@ def main():
             try:
                 agent = paramiko.Agent()
             except Exception as e:
-                efatal("Error checking for ssh-agent keys", e)
+                efatal("Error checking for ssh-agent keys", e, quiet=options.quiet)
             agent_keys = agent.get_keys()
             if len(agent_keys) == 0:
-                fatal("No ssh-agent keys found to register")
+                fatal("No ssh-agent keys found to register", quiet=options.quiet)
             if showprogress:
                 log("Registering ssh keys at " + vaultserver + " ...", end='', flush=True)
             pubkeys = []
@@ -1211,10 +1211,10 @@ def main():
                 pubkeys.append(key.get_name() + ' ' + key.get_base64() + ' ' + keyname)
 
             if 'auth' not in response:
-                fatal("no 'auth' in response from %s" % vaultserver)
+                fatal("no 'auth' in response from %s" % vaultserver, quiet=options.quiet)
             auth = response['auth']
             if 'client_token' not in auth:
-                fatal("no 'client_token' in response from %s" % vaultserver)
+                fatal("no 'client_token' in response from %s" % vaultserver, quiet=options.quiet)
             vaulttoken = auth['client_token']
             headers = {'X-Vault-Token': vaulttoken}
 
@@ -1233,21 +1233,21 @@ def main():
             except Exception as e:
                 if showprogress:
                     log(" failed")
-                efatal("ssh key registration failed to %s failed" % vaultserver, e)
+                efatal("ssh key registration failed to %s failed" % vaultserver, e, quiet=options.quiet)
             if showprogress:
                 log(" done")
 
 
-        vaulttoken = getVaultToken(vaulttokensecs, response)
-        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+        vaulttoken = getVaultToken(vaulttokensecs, response, quiet=options.quiet)
+        writeTokenSafely("vault", vaulttoken, vaulttokenfile, quiet=options.quiet)
 
         auth = response['auth']
         if 'metadata' not in auth:
-            fatal("no 'metadata' in response from %s" % vaultserver)
+            fatal("no 'metadata' in response from %s" % vaultserver, quiet=options.quiet)
         metadata = auth['metadata']
         if options.credkey is None:
             if 'credkey' not in metadata:
-                fatal("no 'metadata' in response from %s" % vaultserver)
+                fatal("no 'metadata' in response from %s" % vaultserver, quiet=options.quiet)
             credkey = metadata['credkey']
 
             if options.verbose:
@@ -1257,15 +1257,15 @@ def main():
             try:
                 os.makedirs(os.path.expanduser(options.configdir), exist_ok=True)
             except Exception as e:
-                efatal('error creating %s' % options.configdir, e)
+                efatal('error creating %s' % options.configdir, e, quiet=options.quiet)
             try:
                 with open(configfile, 'w') as file:
                     file.write(credkey + '\n')
             except Exception as e:
-                efatal('error writing %s' % configfile, e)
+                efatal('error writing %s' % configfile, e, quiet=options.quiet)
 
         if 'oauth2_refresh_token' not in metadata:
-            fatal("no 'oauth2_refresh_token' in response from %s" % vaultserver)
+            fatal("no 'oauth2_refresh_token' in response from %s" % vaultserver, quiet=options.quiet)
         refresh_token = metadata['oauth2_refresh_token']
         fullsecretpath = secretpath.replace("%credkey", credkey)
 
@@ -1292,20 +1292,20 @@ def main():
         except Exception as e:
             if showprogress:
                 log(" failed")
-            efatal("Refresh token storage to %s failed" % vaultserver, e)
+            efatal("Refresh token storage to %s failed" % vaultserver, e, quiet=options.quiet)
         if showprogress:
             log(" done")
 
         if options.verbose:
             log("Getting bearer token from " + vaultserver)
 
-        bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+        bearertoken = getBearerToken(vaulttoken, fullsecretpath, quiet=options.quiet)
 
     if bearertoken is None:
-        fatal("Failure getting token from " + vaultserver)
+        fatal("Failure getting token from " + vaultserver, quiet=options.quiet)
 
     # Write bearer token to outfile
-    writeTokenSafely("bearer", bearertoken, outfile)
+    writeTokenSafely("bearer", bearertoken, outfile, quiet=options.quiet)
 
 
 if __name__ == '__main__':
