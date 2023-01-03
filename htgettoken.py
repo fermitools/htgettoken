@@ -75,42 +75,57 @@ vault = None # default instance of the vaulthost class
 sys.stdout = open(1, 'w', encoding='utf-8', closefd=False)
 sys.stderr = open(2, 'w', encoding='utf-8', closefd=False)
 
-# print wrapper.  print to logfile.
-# based on https://stackoverflow.com/a/26286311
+
 def log(*args, **kwargs):
+    """Print to a log file.
+
+    Based on https://stackoverflow.com/a/26286311.
+    """
     print(" ".join(map(str,args)), file=logfile, **kwargs)
 
-# define custom logger handler for urllib3 to send output to our log function
+
 class HtgettokenHandler(logging.StreamHandler):
+    """Custom logger handler for urllib3 to send output to our log function.
+    """
     def __init__(self):
         logging.StreamHandler.__init__(self)
     def emit(self, record):
         log(self.format(record))
+
 root_logger = logging.getLogger()
 log_format = '%(name)s - %(levelname)s - %(message)s'
 log_handler = HtgettokenHandler()
 log_handler.setFormatter(logging.Formatter(log_format))
 root_logger.addHandler(log_handler)
 
-# always print to stderr
+
 def logerr(*args, **kwargs):
+    """Always print to stderr.
+    """
     print(" ".join(map(str,args)), file=sys.stderr, **kwargs)
 
+
 def usage(parser, msg):
+    """Print usage and exit.
+    """
     logerr(prog + ": " + msg + '\n')
     parser.print_help(sys.stderr)
     sys.exit(2)
 
 
 def fatal(msg, code=1):
+    """Exit with a fatal error.
+    """
     if (options is None) or not options.quiet:
         if showprogress:
             log()
         logerr(prog + ": " + msg)
     sys.exit(code)
 
-# expand an exception to get maximum info
+
 def expandexception(e):
+    """Expand an exception to get maximum info.
+    """
     typ = type(e).__name__
     msg = typ + ': ' + str(e)
     if typ == 'GSSError':
@@ -119,21 +134,27 @@ def expandexception(e):
             msg += ' ' + arg + '.'
     return msg
 
-# print exception type name and contents after fatal error message
+
 def efatal(msg, e, code=1):
+    """Print exception type name and contents after fatal error message.
+    """
     fatal(msg + ': ' + expandexception(e), code)
 
-# log an exception after given message
+
 def elog(msg, e):
+    """Log an exception after given message.
+    """
     log(msg + ': ' + expandexception(e))
 
 
-# This is very similar to corresponding code in the HTCondor VaultCredmon.
-# A host may be round-robin. This uses an HTTPSConnectionPool to continue
-# to use the same IP address for multiple connections.  If there is a
-# connection timeout the IP address that caused it is removed from
-# consideration.
 class vaulthost:
+    """This is very similar to corresponding code in the HTCondor VaultCredmon.
+
+    A host may be round-robin. This uses an HTTPSConnectionPool to continue
+    to use the same IP address for multiple connections.  If there is a
+    connection timeout the IP address that caused it is removed from
+    consideration.
+    """
     ips = []
     pool = None
     host = ""
@@ -216,8 +237,13 @@ class vaulthost:
                 return resp
 
 
-# function from http://stackoverflow.com/questions/4407539/python-how-to-make-an-option-to-be-required-in-optparse
 def checkRequiredOptions(parser):
+    """Check required options.
+
+    Function from
+
+    http://stackoverflow.com/questions/4407539/python-how-to-make-an-option-to-be-required-in-optparse
+    """
     missing_options = []
     for option in parser.option_list:
         if (re.search(r'\(required\)$', option.help) and
@@ -227,9 +253,12 @@ def checkRequiredOptions(parser):
         usage(parser, "Missing required parameters: " + str(missing_options))
 
 
-# This is a function because it has to be done after both times
-#  the options are processed.
 def parseargs(parser, argv):
+    """Parse command-line arguments.
+
+    This is a function because it has to be done after both times
+    the options are processed.
+    """
     global options
     (options, args) = parser.parse_args(argv)
     if len(args) != 0:
@@ -241,10 +270,11 @@ def parseargs(parser, argv):
         options.capath = os.getenv('X509_CERT_DIR') or defaults['capath']
 
 
-# Either extract the vault token from an auth response or exchange
-#  it for another one if either the lease_duration is too long or it
-#  includes an sshregister policy.
 def getVaultToken(vaulttokensecs, response):
+    """Either extract the vault token from an auth response or exchange
+    it for another one if either the lease_duration is too long or it
+    includes an sshregister policy.
+    """
     if 'auth' not in response:
         fatal("no 'auth' in response from %s" % vaultserver)
     auth = response['auth']
@@ -297,9 +327,12 @@ def getVaultToken(vaulttokensecs, response):
         return response['auth']['client_token']
     fatal("no vault token in response from %s" % url)
 
-# Check for a minimum number of seconds remaining in vault token
-# Return True if there's enough time remaining, else False
+
 def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
+    """Check for a minimum number of seconds remaining in vault token
+
+    Return True if there's enough time remaining, else False.
+    """
     # Look up info about the vault token
     path = '/v1/' + 'auth/token/lookup-self'
     url = vaultserver + path
@@ -330,8 +363,10 @@ def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
         return True
     return False
 
-# Read a bearer token from vault
+
 def getBearerToken(vaulttoken, vaultpath):
+    """Read a bearer token from vault.
+    """
     if options.showbearerurl:
         print(vaultserver + '/v1/' + vaultpath)
         options.showbearerurl = False
@@ -380,9 +415,11 @@ def getBearerToken(vaulttoken, vaultpath):
 def isDevFile(file):
     return file.startswith("/dev/std") or file.startswith("/dev/fd")
 
-# safely write out a token to where it might be a world-writable
-#  directory, unless the output is a device file
+
 def writeTokenSafely(tokentype, token, outfile):
+    """Safely write out a token to where it might be a world-writable
+    directory, unless the output is a device file
+    """
     dorename = False
     if isDevFile(outfile):
         if options.debug:
@@ -424,9 +461,11 @@ def writeTokenSafely(tokentype, token, outfile):
             except:
                 pass
             efatal("failure renaming " + path + " to " + outfile, e)
-    
-# convert a time to live with trailing unit character into seconds
+
+
 def ttl2secs(ttl, msg):
+    """Convert a time to live with trailing unit character into seconds.
+    """
     # calculate ttl in seconds
     lastchr = ttl[-1:]
     numpart = ttl[0:-1]
@@ -444,6 +483,7 @@ def ttl2secs(ttl, msg):
     elif lastchr != 's':
         fatal(failmsg)
     return secs
+
 
 ### htgettoken main ####
 def main():
