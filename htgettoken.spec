@@ -124,6 +124,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Make --showbearerurl work properly in combination with --nobearertoken
+
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
   if it is entirely numeric, not if it just contains one digit.  At the same

@@ -933,9 +933,7 @@ def main():
                     log("Credkey from %s: %s" % (configfile, credkey))
 
     if (credkey is not None or options.nobearertoken) and not options.registerssh:
-        fullsecretpath = ""
-        if not options.nobearertoken:
-            fullsecretpath = secretpath.replace("%credkey", credkey)
+        fullsecretpath = secretpath.replace("%credkey", credkey)
 
         # Check to see if a valid vault token already exists and works by
         #   attempting to read a bearer token
