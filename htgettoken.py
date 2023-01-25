@@ -580,9 +580,6 @@ def main():
 
     parseargs(parser, envargs + sys.argv[1:])
 
-    if options.debug:
-        http.client.HTTPConnection.debuglevel = 5
-
     if options.optserver is not None:
         # read additional options from optserver
         optserver = options.optserver
@@ -657,6 +654,12 @@ def main():
         # switch log output to stdout if nothing else is using it
         global logfile
         logfile=sys.stdout
+        if options.debug:
+            log("Enabling HTTPConnection debugging")
+            # Unfortunately in urllib3 this only ever prints to stdout,
+            # so only enable the HTTPConnection debugging when not needing
+            # to parse stdout
+            http.client.HTTPConnection.debuglevel = 5
 
     if not options.nooidc and not sys.stdout.isatty() \
                 and not sys.stderr.isatty() and not sys.stdin.isatty():
