@@ -71,6 +71,7 @@ rm -rf $RPM_BUILD_ROOT
 # -- changelog
 
 %changelog
+# - Make --showbearerurl work properly in combination with --nobearertoken
 # - Replace use of m2crypto and pyOpenSSL with urllib3
 # - Replace use of pykerberos with gssapi
 # - Use standard Requires for Python modules instead of PyInstaller
