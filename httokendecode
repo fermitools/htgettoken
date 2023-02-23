@@ -106,7 +106,7 @@ else
 fi
 if [ -n "$TOKENFILE" ]; then
     if [ ! -e "$TOKENFILE" ]; then
-        echo "$TOKENFILE not found" 
+        echo "$TOKENFILE not found" >&2
         exit 1
     fi
     read TOKEN <$TOKENFILE
