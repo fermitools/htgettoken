@@ -81,8 +81,10 @@ rm -rf $RPM_BUILD_ROOT
 # - Add setuptools build infrastructure
 # - Refactor htgettoken script into module with entry point.
 #   This enables invoking htgettoken as `htgettoken.main()` from Python.
-# - Use wheels to build/install Python package, which simplified the entry points
-#   and improves (slightly) the metadata
+# - Use wheels to build/install Python package, which simplified the entry
+#   points and improves (slightly) the metadata
+# - Change the httokendecode error message for a missing token file to
+#   stderr instead of stdin.
 
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
