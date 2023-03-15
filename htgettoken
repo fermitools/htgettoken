@@ -186,6 +186,9 @@ class _SslSocketWrapper(object):
 # depend on always using python3.  If I do switch it to use the standard
 # HTTPSConnection class, remember to test what happens with timeouts and
 # find an alternative to the vaulthostname override from --vaultalias.
+# This also implements switching between multiple IP addresses in a 
+# round-robin after timeouts so that is something else that needs to be
+# preserved.
 # 
 class CertValidatingHTTPSConnection(http_client.HTTPConnection):
     default_port = http_client.HTTPS_PORT
@@ -197,7 +200,7 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
         http_client.HTTPConnection.__init__(self, host, port, **kwargs)
         self.host = host
         if port is None:
-            self.port = http_client.HTTPS_PORT
+            self.port = self.default_port
         else:
             self.port = port
         self.key_file = key_file
@@ -240,7 +243,7 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
             context.load_cert_chain(self.cert_chain_file)
         # Note that m2crypto does not verify CRLs.  There is an
         # extension package m2ext that does, but ignoring CRLs for the
-        # well-managed servers that cigetcert connects to is deemed to
+        # well-managed servers that htgettoken connects to is deemed to
         # be an acceptable risk.
         context.set_verify(
             SSL.verify_peer | SSL.verify_fail_if_no_peer_cert, depth=9)
@@ -304,11 +307,12 @@ class CertValidatingHTTPSConnection(http_client.HTTPConnection):
                 sslconn.clientPostConnectionCheck = overridecheck
                 sslconn.connect((ip, self.port))
             except SSL.Checker.WrongHost as e:
-                # Also allow the vaultalias, although this doesn't work
-                #  with wildcard host certs.  The vaultalias is also used
-                #  for the kerberos cluster name, so checking it after an
-                #  exception like this avoids having to have separate
-                #  options for kerberos and https aliases.
+                # Also allow the vaultalias (via the derived vaulthostname),
+                #  although this doesn't work with wildcard host certs.
+                # The vaultalias is also used for the kerberos cluster
+                #  name, so checking it after an exception like this
+                #  avoids having to have separate options for kerberos
+                #  and https aliases.
                 if vaulthostname is None:
                     raise e
                 elif 'DNS:'+vaulthostname+',' not in e.actualHost+',':
@@ -716,7 +720,8 @@ def main():
                       default="7d",
                       help="time (s, m, h, or d suffix) for new vault token to live")
     parser.add_option("--vaulttokenminttl",
-                      metavar="seconds",
+                      metavar="time",
+                      default="0s",
                       help="minimum time (s, m, h or d suffix) left in existing vault token before expiration")
     parser.add_option("--vaulttokenfile",
                       metavar="path",
@@ -928,9 +933,7 @@ def main():
                     log("Credkey from %s: %s" % (configfile, credkey))
 
     if (credkey is not None or options.nobearertoken) and not options.registerssh:
-        fullsecretpath = ""
-        if not options.nobearertoken:
-            fullsecretpath = secretpath.replace("%credkey", credkey)
+        fullsecretpath = secretpath.replace("%credkey", credkey)
 
         # Check to see if a valid vault token already exists and works by
         #   attempting to read a bearer token
