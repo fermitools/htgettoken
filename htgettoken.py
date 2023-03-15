@@ -15,7 +15,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "1.16"
+version = "1.17"
 
 import os
 import sys
@@ -175,7 +175,7 @@ class vaulthost:
             self.pool = None
 
     def getips(self):
-        info = socket.getaddrinfo(self.host, 0, 0, socket.IPPROTO_TCP)
+        info = socket.getaddrinfo(self.host, 0, 0, 0, socket.IPPROTO_TCP)
 
         self.ips = []
         # Use only IPv4 addresses if there are any
