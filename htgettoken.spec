@@ -124,7 +124,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Make --showbearerurl work properly in combination with --nobearertoken
+# - Fix the usage of getaddrinfo, which caused a fatal error on python3.9
+#   on Mac.
+# - Make --showbearerurl work properly in combination with --nobearertoken.
 # - Change the httokendecode error message for a missing token file to
 #   stderr instead of stdin.
 
