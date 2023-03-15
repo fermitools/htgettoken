@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.16
+Version: 1.17
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -124,11 +124,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Fix the usage of getaddrinfo, which caused a fatal error on python3.9
-#   on Mac.
-# - Make --showbearerurl work properly in combination with --nobearertoken.
-# - Change the httokendecode error message for a missing token file to
-#   stderr instead of stdin.
+* Wed Mar 15 2023 Dave Dykstra <dwd@fnal.gov> 1.17-1
+- Fix the usage of getaddrinfo, which caused a fatal error on python3.9
+  on Mac.
+- Make --showbearerurl work properly in combination with --nobearertoken.
+- Change the httokendecode error message for a missing token file to
+  stderr instead of stdin.
 
 * Wed Oct 12 2022 Dave Dykstra <dwd@fnal.gov> 1.16-1
 - Fix httokendecode -H functionality to only attempt to convert a parsed word
