@@ -48,6 +48,7 @@ import paramiko
 from optparse import OptionParser
 import urllib3
 import http.client
+import getpass
 
 # get the default certificates paths for this platform
 _paths = ssl.get_default_verify_paths()
@@ -168,6 +169,30 @@ def default_web_open_command():
         "linux": "xdg-open",
         "win32": "start",
     }.get(sys.platform)
+
+
+def default_output_file(prefix="bt_"):
+    """Determine default bearer token output file path.
+
+    If ``$BEARER_TOKEN_FILE`` is set in the environment, that will be used.
+    Otherwise, ``/tmp/bt_u$uid`` (Unix) or
+    ``C:\\Windows\\Temp\\bt_$username`` (Windows) will be used.
+    """
+    # if the environment specifies this directly, use it
+    out = os.getenv("BEARER_TOKEN_FILE")
+    if out:
+        return out
+
+    # otherwise construct a sensible default
+    if os.name == "nt":
+        tmpdir = os.path.join(os.environ["SYSTEMROOT"], "Temp")
+        uid = getpass.getuser()
+    else:
+        tmpdir = "/tmp"
+        uid = "u{}".format(os.geteuid())
+    if not os.path.exists(tmpdir):  # fall-back to Python's best guess tmpdir
+        tmpdir = tempfile.gettempdir()
+    return os.path.join(tmpdir, "{}{}".format(prefix, uid))
 
 
 class vaulthost:
@@ -604,8 +629,8 @@ def main():
                       help="only get a vault token, skip getting a bearer token")
     parser.add_option("-o", "--outfile",
                       metavar="path",
-                      help="path to save bearer token " +
-                        "[default: $BEARER_TOKEN_FILE or $XDG_RUNTIME_DIR/bt_u%uid]")
+                      default=default_output_file(),
+                      help="path to save bearer token")
     parser.add_option("--minsecs",
                       type="int", metavar="seconds", default=60,
                       help="minimum number of seconds left in bearer token before expiration")
@@ -695,16 +720,9 @@ def main():
         if vaulttokenminsecs >= vaulttokensecs:
             fatal("--vaulttokenminttl must be less than --vaulttokenttl")
 
-    # calculate defaults for options that are too complex for "default" keyword
-    if options.outfile is None:
-        options.outfile = os.getenv("BEARER_TOKEN_FILE")
-        if options.outfile is None:
-            tmpdir = os.getenv("XDG_RUNTIME_DIR")
-            if tmpdir is None:
-                tmpdir = '/tmp'
-            options.outfile = tmpdir + "/bt_u%uid"
-    outfile = options.outfile.replace("%uid", str(os.geteuid()))
+    outfile = options.outfile
 
+    # calculate defaults for options that are too complex for "default" keyword
     if options.vaulttokenfile is None:
         if vaulttokensecs > 1000000:
             options.vaulttokenfile = "/dev/stdout"
