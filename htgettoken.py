@@ -157,6 +157,19 @@ def elog(msg, e):
     log(msg + ': ' + expandexception(e))
 
 
+def default_web_open_command():
+    """Determine the sensible default for the --web-open-command option.
+    """
+    if os.getenv("SSH_CLIENT"):  # unsupported
+        return None
+    # otherwise use a sensible default if the platform is recognised
+    return {
+        "darwin": "open",
+        "linux": "xdg-open",
+        "win32": "start",
+    }.get(sys.platform)
+
+
 class vaulthost:
     """This is very similar to corresponding code in the HTCondor VaultCredmon.
 
@@ -612,8 +625,8 @@ def main():
                       defaults['capath'] + ']')
     parser.add_option("--web-open-command",
                       metavar="command",
-                      help="Command to execute to open a URL in a web browser " +
-                      '[default: "xdg-open" unless $SSH_CLIENT is set]')
+                      default=default_web_open_command(),
+                      help="Command to execute to open a URL in a web browser")
 
     # Change the default handler for SIGINT from raising a KeyboardInterrupt
     #  (which is ignored by urllib) to SIG_DFL (which exits)
@@ -716,16 +729,6 @@ def main():
         if options.verbose:
             log("Disabling oidc because running in the background")
         options.nooidc = True
-
-    if options.web_open_command is None:
-        sshclient = os.getenv("SSH_CLIENT")
-        if sshclient is None:
-            if sys.platform == 'darwin':
-                options.web_open_command = 'open'
-            else:
-                options.web_open_command = 'xdg-open'
-        else:
-            options.web_open_command = ""
 
     # Get and parse the vaultserver URL
     global vaultserver
