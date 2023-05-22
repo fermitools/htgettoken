@@ -12,6 +12,16 @@
 #
 # Author: Dave Dykstra dwd@fnal.gov
 
+"""Get OIDC bearer tokens by interacting with Hashicorp vault.
+
+See the htgettoken manual page (`htgettoken(1)`) for more verbose details
+than are included by -h/--help.
+
+Note that the default arguments printed by -h/--help are influenced
+by both the ``$HTGETTOKENOPTS`` environment variable AND the
+information received from the -s/--optserver (if configured).
+"""
+
 from __future__ import print_function
 
 prog = "htgettoken"
