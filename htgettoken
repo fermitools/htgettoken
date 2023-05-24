@@ -912,7 +912,7 @@ def main():
 
     credkey = options.credkey
     configfile = None
-    if credkey is None:
+    if credkey is None and (not options.nobearertoken or options.showbearerurl):
         # Look for saved credkey, needed for figuring out the vault secretpath
         configfile = options.configdir + '/credkey-' + options.issuer + '-' + options.role
         configfile = os.path.expanduser(configfile)
@@ -933,7 +933,12 @@ def main():
                     log("Credkey from %s: %s" % (configfile, credkey))
 
     if (credkey is not None or options.nobearertoken) and not options.registerssh:
-        fullsecretpath = secretpath.replace("%credkey", credkey)
+        fullsecretpath = ""
+        if credkey is None:
+            if options.showbearerurl:
+                fatal("cannot do --showbearerurl because credkey is not known")
+        else:
+            fullsecretpath = secretpath.replace("%credkey", credkey)
 
         # Check to see if a valid vault token already exists and works by
         #   attempting to read a bearer token
