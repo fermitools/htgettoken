@@ -124,6 +124,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Fix crash introduced in 1.17 when using --nobearertoken while the
+#   credkey is not known.
+
 * Wed Mar 15 2023 Dave Dykstra <dwd@fnal.gov> 1.17-1
 - Fix the usage of getaddrinfo, which caused a fatal error on python3.9
   on Mac.
