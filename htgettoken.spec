@@ -1,8 +1,8 @@
-%define downloads_version 1.7
+%define downloads_version 1.8
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.17
+Version: 1.18
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -19,6 +19,7 @@ BuildRequires: python3-devel
 #   OpenSSL 1.1
 BuildRequires: swig
 BuildRequires: openssl-devel
+BuildRequires: krb5-devel
 
 # Needed by httokendecode
 Requires: jq
@@ -40,28 +41,28 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 # starts out in htgettoken-downloads
 
 set -e
-PYDIR=$PWD/.local
+PYVERS="python3$(python3 -V|cut -d. -f2)"
+PYDIR=$PWD/$PYVERS/.local
 PATH=$PYDIR/bin:$PATH
 
 # install in reverse order of their download (because dependency downloads
 #   come after requested packages)
-PKGS="$(tar tf %{SOURCE1} |sed 's,^%{name}-downloads-[^/]*/,,'| grep -v "^\.local"| tac)"
+PKGS="$(tar tf %{SOURCE1} | grep "/$PYVERS/." | sed 's,^%{name}-downloads-[^/]*/,,'| grep -v "^$PYVERS/\.local"| tac)"
 # installing wheel separately first eliminates warnings about falling back
 #   to setup.py
-WHEELPKG="$(echo "$PKGS"|grep ^wheel)"
-PKGS="$(echo "$PKGS"|grep -v ^wheel|paste -sd ' ')"
+WHEELPKG="$(echo "$PKGS"|grep ^$PYVERS/wheel)"
+PKGS="$(echo "$PKGS"|grep -v ^$PYVERS/wheel|paste -sd ' ')"
 # --no-build-isolation is needed for offline build of pyinstaller as per
 #  https://github.com/pyinstaller/pyinstaller/issues/4557
 # python3 is explicitly invoked here so it comes from $PATH to test
 #   various versions
-HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $WHEELPKG
+HOME=$PWD/$PYVERS python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $WHEELPKG
 export PYTHONPATH="`echo $PYDIR/lib*/python*/site-packages|sed 's/ /:/g'`"
-HOME=$PWD python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $PKGS
+HOME=$PWD/$PYVERS python3 $(type -p pip3) install --no-cache-dir --no-build-isolation --user $PKGS
 
 cd ../%{name}-%{version}
 
-PYIOPTS="--noconsole --log-level=WARN"
-python3 $PYDIR/bin/pyi-makespec $PYIOPTS --specpath=dist %{name}
+python3 $PYDIR/bin/pyi-makespec --noconsole --log-level=WARN --specpath=dist %{name}
 
 # Exclude system libraries from the bundle as documented at
 #  https://pyinstaller.readthedocs.io/en/stable/spec-files.html#posix-specific-options
@@ -83,7 +84,7 @@ awk '{
     print
 }' dist/%{name}-lesslibs.spec >dist/%{name}-lesslibsandwarn.spec
 
-python3 $PYDIR/bin/pyinstaller $PYIOPTS --noconfirm --clean dist/%{name}-lesslibsandwarn.spec
+python3 $PYDIR/bin/pyinstaller --log-level=WARN --noconfirm --clean dist/%{name}-lesslibsandwarn.spec
 
 find dist/%{name} -name '*.*' ! -type d|xargs chmod -x
 
@@ -124,8 +125,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Fix crash introduced in 1.17 when using --nobearertoken while the
-#   credkey is not known.
+* Wed May 24 2023 Dave Dykstra <dwd@fnal.gov> 1.18-1
+- Fix crash introduced in 1.17 when using --nobearertoken while the
+  credkey is not known.
+- Make source rpm buildable on el9.
 
 * Wed Mar 15 2023 Dave Dykstra <dwd@fnal.gov> 1.17-1
 - Fix the usage of getaddrinfo, which caused a fatal error on python3.9
