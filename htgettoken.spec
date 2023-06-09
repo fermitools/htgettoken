@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.17
+Version: 1.18
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -83,9 +83,10 @@ rm -rf $RPM_BUILD_ROOT
 # - Use wheels to build/install Python package, which simplified the entry
 #   points and improves (slightly) the metadata
 
-# For 1.18:
-# - Fix crash introduced in 1.17 when using --nobearertoken while the
-#   credkey is not known.
+* Wed May 24 2023 Dave Dykstra <dwd@fnal.gov> 1.18-1
+- Fix crash introduced in 1.17 when using --nobearertoken while the
+  credkey is not known.
+- Make source rpm buildable on el9.
 
 * Wed Mar 15 2023 Dave Dykstra <dwd@fnal.gov> 1.17-1
 - Fix the usage of getaddrinfo, which caused a fatal error on python3.9
