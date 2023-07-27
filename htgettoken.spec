@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.18
+Version: 1.19
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -126,7 +126,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Add httokensh command.
+* Thu Jul 27 2023 Dave Dykstra <dwd@fnal.gov> 1.19-1
+- Add httokensh command.
 
 * Wed May 24 2023 Dave Dykstra <dwd@fnal.gov> 1.18-1
 - Fix crash introduced in 1.17 when using --nobearertoken while the
