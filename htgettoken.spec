@@ -108,6 +108,7 @@ exec %{_libexecdir}/%{name}/%{name} "$@"
 cp htdestroytoken $RPM_BUILD_ROOT%{_bindir}
 cp httokendecode $RPM_BUILD_ROOT%{_bindir}
 ln -s httokendecode $RPM_BUILD_ROOT%{_bindir}/htdecodetoken
+cp httokensh $RPM_BUILD_ROOT%{_bindir}
 chmod +x $RPM_BUILD_ROOT%{_bindir}/*
 gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
 
@@ -125,6 +126,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Add httokensh command.
+
 * Wed May 24 2023 Dave Dykstra <dwd@fnal.gov> 1.18-1
 - Fix crash introduced in 1.17 when using --nobearertoken while the
   credkey is not known.
