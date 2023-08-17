@@ -1,0 +1,38 @@
+.TH htdestroytoken 1
+.SH NAME
+htdestroytoken \- remove bearer and vault tokens
+
+.SH SYNOPSIS
+.B htdestroytoken
+[-q]
+
+.SH DESCRIPTION
+.B htdestroytoken
+removes a bearer token found by WLCG Bearer Token Discovery and also
+removes a vault token found in the default location used by 
+.BR htgettoken.
+
+Note that the vault server additionally caches bearer tokens, so the
+next time that
+.B htgettoken
+is run the same bearer token might be returned unless a new one is 
+forced to be retrieved with either oidc authentication or with an
+htgettoken
+.I \-\-minsecs
+option.
+
+.SH OPTIONS
+The following options are recognized:
+.PP
+.TP
+.BR \-q
+Do removals silently
+
+.SH AUTHOR
+Dave Dykstra
+
+.SH COPYRIGHT
+Copyright \(co 2023 Fermi National Accelerator Laboratory
+
+.SH "SEE ALSO"
+htgettoken(1), htdecodetoken(1)

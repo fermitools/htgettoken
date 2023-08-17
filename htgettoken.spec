@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.19
+Version: 1.20
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -21,7 +21,7 @@ BuildRequires: swig
 BuildRequires: openssl-devel
 BuildRequires: krb5-devel
 
-# Needed by httokendecode
+# Needed by htdecodetoken
 Requires: jq
 
 %description
@@ -106,11 +106,14 @@ cat > $RPM_BUILD_ROOT%{_bindir}/%{name} <<'!EOF!'
 exec %{_libexecdir}/%{name}/%{name} "$@"
 !EOF!
 cp htdestroytoken $RPM_BUILD_ROOT%{_bindir}
-cp httokendecode $RPM_BUILD_ROOT%{_bindir}
-ln -s httokendecode $RPM_BUILD_ROOT%{_bindir}/htdecodetoken
+cp htdecodetoken $RPM_BUILD_ROOT%{_bindir}
+ln -s htdecodetoken $RPM_BUILD_ROOT%{_bindir}/httokendecode
 cp httokensh $RPM_BUILD_ROOT%{_bindir}
 chmod +x $RPM_BUILD_ROOT%{_bindir}/*
-gzip -c %{name}.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/%{name}.1.gz
+for f in %{name} htdestroytoken htdecodetoken httokensh; do
+    gzip -c $f.1 >$RPM_BUILD_ROOT%{_datadir}/man/man1/$f.1.gz
+done
+ln -s htdecodetoken.1 $RPM_BUILD_ROOT%{_datadir}/man/man1/httokendecode.1.gz 
 
 # extend read and execute permissions to all users
 find $RPM_BUILD_ROOT ! -perm -4|xargs -rt chmod a+r
@@ -122,10 +125,18 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %{_bindir}/*
 %{_libexecdir}/%{name}
-%{_datadir}/man/man1/%{name}*
+%{_datadir}/man/man1/*
 
 
 %changelog
+* Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
+- Update httokensh to by default set the minimum vault token time to live to
+  6 days, and to make sure that the background refresh never gets a new vault
+  token.
+- Changed the preferred name of httokendecode to htdecodetoken, keeping
+  links in the opposite direction.
+- Add man pages for httokensh, htdestroytoken, and htdecodetoken.
+
 * Thu Jul 27 2023 Dave Dykstra <dwd@fnal.gov> 1.19-1
 - Add httokensh command.
 

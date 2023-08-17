@@ -1,0 +1,76 @@
+.TH httokensh 1
+.SH NAME
+httokensh \- renew tokens with htgettoken as long as command runs
+
+.SH SYNOPSIS
+.B httokensh
+[-h] [ htgettoken_options ] -- [command]
+
+.SH DESCRIPTION
+.B httokensh
+runs
+.B htgettoken
+with the given options, then starts a shell command and keeps the access
+token updated for as long as the command runs.
+If no command is given the default is to run $SHELL.
+A double hyphen is always required after the htgettoken options.
+
+If there is no 
+.I \-o
+or
+.I \-\-outfile
+htgettoken option and $BEARER_TOKEN_FILE is not already
+set, 
+.B httokensh
+chooses a unique location for the access token and sets the
+$BEARER_TOKEN_FILE environment to point to the token inside the command.
+
+If there is no 
+.I \-\-vaulttokenfile
+htgettoken option, the vault token will be stored in a file name based
+on a hash of the options given, so that multiple
+.B httokensh
+commands run by the same user on the same machine with the same options
+will share a vault token and otherwise will get a different vault token.
+
+If there are no
+.I \-\-vaulttokenttl
+or
+.I \-\-vaulttokenminttl
+htgettoken options provided then
+.I \-\-vaulttokenminttl=6d
+will be automatically added to ensure there are at least 6 days remaining
+on the vault token.
+
+The access token will be renewed just under 
+.I \-\-minsecs
+seconds (default 60) before the token is set to expire, using the same
+options used to get the original token except with additional options to
+make sure that no new vault token is retrieved.
+
+Output from the
+.B htgettoken
+commands that do the renewal goes to $BEARER_TOKEN_FILE.log.
+
+If the background process for token renewal is still running when the
+shell command exits, the $BEARER_TOKEN_FILE and $BEARER_TOKEN_FILE.log
+will be automatically removed, otherwise they will remain available for
+debugging.
+The vault token is not removed on exit so it can be used again.
+
+.SH OPTIONS
+In addition to htgettoken options, the following options are recognized by
+.BR httokensh :
+.PP
+.TP
+.BR \-h , \ \-\-help
+Show a help message and exit.
+
+.SH AUTHOR
+Dave Dykstra
+
+.SH COPYRIGHT
+Copyright \(co 2023 Fermi National Accelerator Laboratory
+
+.SH "SEE ALSO"
+htgettoken(1)
