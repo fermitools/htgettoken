@@ -1,0 +1,144 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Aug 17 11:56:12 2023 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>httokensh</title>
+
+</head>
+<body>
+
+<h1 align="center">httokensh</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#AUTHOR">AUTHOR</a><br>
+<a href="#COPYRIGHT">COPYRIGHT</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">httokensh
+&minus; renew tokens with htgettoken as long as command
+runs</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>httokensh</b>
+[-h] [ htgettoken_options ] -- [command]</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>httokensh</b>
+runs <b>htgettoken</b> with the given options, then starts a
+shell command and keeps the access token updated for as long
+as the command runs. If no command is given the default is
+to run $SHELL. A double hyphen is always required after the
+htgettoken options.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If there is no
+<i>&minus;o</i> or <i>&minus;&minus;outfile</i> htgettoken
+option and $BEARER_TOKEN_FILE is not already set,
+<b>httokensh</b> chooses a unique location for the access
+token and sets the $BEARER_TOKEN_FILE environment to point
+to the token inside the command.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If there is no
+<i>&minus;&minus;vaulttokenfile</i> htgettoken option, the
+vault token will be stored in a file name based on a hash of
+the options given, so that multiple <b>httokensh</b>
+commands run by the same user on the same machine with the
+same options will share a vault token and otherwise will get
+a different vault token.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If there are no
+<i>&minus;&minus;vaulttokenttl</i> or
+<i>&minus;&minus;vaulttokenminttl</i> htgettoken options
+provided then <i>&minus;&minus;vaulttokenminttl=6d</i> will
+be automatically added to ensure there are at least 6 days
+remaining on the vault token.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The access
+token will be renewed just under
+<i>&minus;&minus;minsecs</i> seconds (default 60) before the
+token is set to expire, using the same options used to get
+the original token except with additional options to make
+sure that no new vault token is retrieved.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Output from the
+<b>htgettoken</b> commands that do the renewal goes to
+$BEARER_TOKEN_FILE.log.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If the
+background process for token renewal is still running when
+the shell command exits, the $BEARER_TOKEN_FILE and
+$BEARER_TOKEN_FILE.log will be automatically removed,
+otherwise they will remain available for debugging. The
+vault token is not removed on exit so it can be used
+again.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">In addition to
+htgettoken options, the following options are recognized by
+<b>httokensh</b>: <b><br>
+&minus;h</b>,&nbsp;<b>&minus;&minus;help</b></p>
+
+<p style="margin-left:22%;">Show a help message and
+exit.</p>
+
+<h2>AUTHOR
+<a name="AUTHOR"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Dave
+Dykstra</p>
+
+<h2>COPYRIGHT
+<a name="COPYRIGHT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Copyright
+&copy; 2023 Fermi National Accelerator Laboratory</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em">htgettoken(1)</p>
+<hr>
+</body>
+</html>

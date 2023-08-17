@@ -1,0 +1,170 @@
+#!/bin/bash
+#
+# Run htgettoken and then start a shell command and keep the access
+# token updated for as long as the command runs.  See httokensh(1).
+#
+# Written by Dave Dykstra August 2023
+
+usage()
+{
+    echo "Usage: httokensh [-h] [htgettokenoptions] -- [command]"
+    echo 
+    echo "Runs htgettoken with given options, starts the command, and runs"
+    echo "htgettoken again in the background as needed to renew the token"
+    echo "until the command exits."
+    echo
+    echo "Options:"
+    echo "  -h, --help     show this help message and exit"
+    echo
+    echo "command defaults to \$SHELL"
+    exit 1
+} >&2
+
+if [ $# = 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    usage
+fi
+
+HTGETOKENARGS=()
+COMMANDARGS=()
+GOTSEP=false
+MINSECS=60
+GOTVERBOSE=false
+GOTOUTFILE=false
+GOTVTFILE=false
+GOTVTTTL=false
+for ARG; do
+    if $GOTSEP; then
+        COMMANDARGS+=("$ARG")
+    elif [ "$ARG" = "--" ]; then
+        GOTSEP=true
+    else
+        HTGETTOKENARGS+=("$ARG")
+        case "$ARG" in
+            --minsecs=*)
+                MINSECS="${ARG/--minsecs=/}"
+                ;;
+            -v|--verbose)
+                GOTVERBOSE=true
+                ;;
+            -o|--outfile=*)
+                GOTOUTFILE=true
+                ;;
+            --vaulttokenfile=*)
+                GOTVTFILE=true
+                ;;
+            --vaulttokenttl=*|--vaulttokenminttl=*)
+                GOTVTTTL=true
+                ;;
+        esac
+    fi
+done
+
+if ! $GOTSEP; then
+    echo "No -- separator given" >&2
+    usage
+fi
+
+if [ ${#HTGETTOKENARGS[@]} = 0 ]; then
+    echo "No htgettoken options given" >&2
+    usage
+fi
+
+if [ ${#COMMANDARGS[@]} = 0 ]; then
+    COMMANDARGS=("$SHELL")
+fi
+
+if [ -z "$BEARER_TOKEN_FILE" ] && ! $GOTOUTFILE; then
+    BTFILE="bt_u$(id -u).sh-$$"
+    if [ -n "$XDG_RUNTIME_DIR" ]; then
+        BEARER_TOKEN_FILE=$XDG_RUNTIME_DIR/$BTFILE
+    else
+        BEARER_TOKEN_FILE=/tmp/$BTFILE
+    fi
+    export BEARER_TOKEN_FILE
+fi
+
+if ! $GOTVTFILE; then
+    ARGHASH="$(echo "${HTGETTOKENARGS[@]}"|md5sum -)"
+    ARGHASH="${ARGHASH%% *}"
+    VTFILE="/tmp/vt_u$(id -u).sh-$ARGHASH"
+    HTGETTOKENARGS+=("--vaulttokenfile=$VTFILE")
+fi
+
+if ! $GOTVTTTL; then
+    HTGETTOKENARGS+=("--vaulttokenminttl=6d")
+fi
+
+gettoken()
+{
+    htgettoken "${HTGETTOKENARGS[@]}"
+    RETVAL="$?"
+    if [ $RETVAL != 0 ]; then
+        echo "htgettoken failed, $1" >&2
+        exit $RETVAL
+    fi
+
+    TOKENJSON="$(htdecodetoken)"
+    RETVAL="$?"
+    if [ $RETVAL != 0 ]; then
+        echo "htdecodetoken failed, $1" >&2
+        exit $RETVAL
+    fi
+
+    EXP="$(echo $TOKENJSON|jq .exp)"
+    NOW="$(date +%s)"
+    let SLEEPSECS="$EXP - $MINSECS - $NOW + 2"
+    if [ "$SLEEPSECS" -lt $2 ]; then
+        echo "Calculated renewal time of $SLEEPSECS seconds is less than $2, $1"
+        exit 1
+    fi
+}
+
+# The first time it is possible to get a cached token that is barely
+# beyond the minsecs, so reduce the minimum to just 1 second
+gettoken "not running command" 1
+
+# make sure the logged info is verbose for easier diagnosis
+if ! $GOTVERBOSE; then
+    HTGETTOKENARGS+=("-v")
+fi
+
+# prevent attempts to get new vault token in background
+HTGETTOKENARGS+=("--nooidc" "--nokerberos" "--nossh")
+
+# enable job control so background processes get their own process group
+set -m
+
+echo "Renewal log is at \$BEARER_TOKEN_FILE.log"
+{
+    echo htgettoken args are "${HTGETTOKENARGS[@]}"
+    while true; do
+        date
+        echo "Renewal scheduled in $SLEEPSECS seconds"
+        sleep $SLEEPSECS
+        date
+        if kill -0 $PPID; then
+            gettoken "exiting" 60
+        else
+            echo "Parent process $PPID not running, exiting"
+            exit 0
+        fi
+    done
+} >$BEARER_TOKEN_FILE.log 2>&1 &
+
+BACKGROUND_PID=$!
+
+cleanup()
+{
+    if kill -- -$BACKGROUND_PID 2>/dev/null; then
+        wait 2>/dev/null
+        rm -f $BEARER_TOKEN_FILE $BEARER_TOKEN_FILE.log
+    else
+        echo >&2
+        echo "Renewal background process failed, see $BEARER_TOKEN_FILE.log" >&2
+        exit 1
+    fi
+}
+
+trap cleanup 0
+
+"${COMMANDARGS[@]}"

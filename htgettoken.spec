@@ -2,7 +2,7 @@
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.18
+Version: 1.20
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -45,7 +45,7 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %license COPYING
 %doc README.md
 %{_bindir}/*
-%{_datadir}/man/man1/%{name}*
+%{_datadir}/man/man1/*
 %{python3_sitelib}/*
 
 # -- build steps
@@ -59,11 +59,15 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %install
 # install the Python project
 %py3_install_wheel %{name}-%{version}-*.whl
-# link htdecodetoken to httokendecode
-(cd %{buildroot}%{_bindir}/; ln -s httokendecode htdecodetoken)
-# install man page(s)
+# link httokendecode to htdecodetoken
+(cd %{buildroot}%{_bindir}/; ln -s htdecode httokendecode)
+# install man pages
 mkdir -p %{buildroot}%{_datadir}/man/man1
 gzip -c %{name}.1 >%{buildroot}%{_datadir}/man/man1/%{name}.1.gz
+for f in %{name} htdestroytoken htdecodetoken httokensh; do
+    gzip -c $f.1 >%{buildroot}%{_datadir}/man/man1/$f.1.gz
+done
+ln -s htdecodetoken.1 %{buildroot}%{_datadir}/man/man1/httokendecode.1.gz 
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -82,6 +86,17 @@ rm -rf $RPM_BUILD_ROOT
 #   This enables invoking htgettoken as `htgettoken.main()` from Python.
 # - Use wheels to build/install Python package, which simplified the entry
 #   points and improves (slightly) the metadata
+
+* Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
+- Update httokensh to by default set the minimum vault token time to live to
+  6 days, and to make sure that the background refresh never gets a new vault
+  token.
+- Changed the preferred name of httokendecode to htdecodetoken, keeping
+  links in the opposite direction.
+- Add man pages for httokensh, htdestroytoken, and htdecodetoken.
+
+* Thu Jul 27 2023 Dave Dykstra <dwd@fnal.gov> 1.19-1
+- Add httokensh command.
 
 * Wed May 24 2023 Dave Dykstra <dwd@fnal.gov> 1.18-1
 - Fix crash introduced in 1.17 when using --nobearertoken while the
