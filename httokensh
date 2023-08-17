@@ -1,16 +1,9 @@
 #!/bin/bash
 #
 # Run htgettoken and then start a shell command and keep the access
-# token updated for as long as the command runs.  If there is no 
-# -o/--outfile htgettoken option and BEARER_TOKEN_FILE is not already
-# set, choose a unique location and set BEARER_TOKEN_FILE to point
-# to the token.  If there is no --vaulttokenfile option, the vault token
-# will be stored in a file name based on a hash of the arguments given,
-# so that multiple httokensh commands run by the same user on the same
-# machine with the same options will share a vault token and otherwise
-# will get a different vault token.  The access token will be renewed
-# just under --minsecs seconds (default 60) before it is set to expire.
-# Output from the background htgettoken goes to $BEARER_TOKEN_FILE.log.
+# token updated for as long as the command runs.  See httokensh(1).
+#
+# Written by Dave Dykstra August 2023
 
 usage()
 {
@@ -38,6 +31,7 @@ MINSECS=60
 GOTVERBOSE=false
 GOTOUTFILE=false
 GOTVTFILE=false
+GOTVTTTL=false
 for ARG; do
     if $GOTSEP; then
         COMMANDARGS+=("$ARG")
@@ -57,6 +51,9 @@ for ARG; do
                 ;;
             --vaulttokenfile=*)
                 GOTVTFILE=true
+                ;;
+            --vaulttokenttl=*|--vaulttokenminttl=*)
+                GOTVTTTL=true
                 ;;
         esac
     fi
@@ -93,6 +90,10 @@ if ! $GOTVTFILE; then
     HTGETTOKENARGS+=("--vaulttokenfile=$VTFILE")
 fi
 
+if ! $GOTVTTTL; then
+    HTGETTOKENARGS+=("--vaulttokenminttl=6d")
+fi
+
 gettoken()
 {
     htgettoken "${HTGETTOKENARGS[@]}"
@@ -126,6 +127,9 @@ gettoken "not running command" 1
 if ! $GOTVERBOSE; then
     HTGETTOKENARGS+=("-v")
 fi
+
+# prevent attempts to get new vault token in background
+HTGETTOKENARGS+=("--nooidc" "--nokerberos" "--nossh")
 
 # enable job control so background processes get their own process group
 set -m

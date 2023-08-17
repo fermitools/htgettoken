@@ -29,10 +29,17 @@ submitted to
 for a description of htgettoken, htvault-config, and their HTCondor
 integration.
 
-## httokendecode
+## additional commands
 
-An additional small script called `httokendecode` is bundled with
-`htgettoken`.  It decodes JSON Web Tokens that it finds either according
-to a given filename (`-` for stdin) or based on the
-[WLCG Bearer Token Discovery](https://zenodo.org/record/3937438#.YUDw7aBOlTY)
-standard if no filename is given.
+A few additional helpful commands are bundled with htgettoken.
+Click on each one below to see their man pages.
+
+- [htdecodetoken/httokendecode](https://htmlpreview.github.io/?https://github.com/fermitools/htgettoken/blob/master/htdecodetoken.html) --
+  decodes JSON Web Tokens that it finds either according to a given
+  filename or based on the
+  [WLCG Bearer Token Discovery](https://zenodo.org/record/3937438#.YUDw7aBOlTY)
+  standard if no filename is given.
+- [htdestroytoken](https://htmlpreview.github.io/?https://github.com/fermitools/htgettoken/blob/master/htdestroytoken.html) --
+  removes bearer and vault tokens
+- [httokensh](https://htmlpreview.github.io/?https://github.com/fermitools/htgettoken/blob/master/httokensh.html) --
+  keeps the bearer token renewed as long as a command it starts runs

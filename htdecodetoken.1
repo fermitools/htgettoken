@@ -1,0 +1,53 @@
+.TH htdecodetoken 1
+.SH NAME
+htdecodetoken \- decode JSON Web Token
+
+.SH SYNOPSIS
+.B htdecodetoken
+[-a] [-H] [file]
+.PP
+.B httokendecode
+[-a] [-H] [file]
+
+.SH DESCRIPTION
+.B htdecodetoken
+(also known as
+.BR httokendecode )
+decodes a JSON Web Token (JWT) and prints the JSON output to standard
+output.
+If a file name provided is "-" it reads the JWT from standard input.
+If no file name is given, it follows the WLCG Bearer Token Discovery
+protocol, which is to first try reading the token from $BEARER_TOKEN,
+next reading the token from the file defined in $BEARER_TOKEN_FILE,
+and finally reading from a file called "bt_u`id -u`" either in
+$XDG_RUNTIME_DIR if it is defined or else in /tmp.
+
+If the
+.B scitokens-verify
+command is found in $PATH, then after decode that command is also run
+and will print an error if the JWT is not found to be currently valid.
+
+.SH OPTIONS
+The following options are recognized:
+.PP
+.TP
+.B \-a
+Additionally shows the algorithm portion of the JWT in a separate JSON
+structure printed first to standard output.
+.TP
+.B \-H
+Prints scopes (specifically "nbf", "iat", and "exp")
+that are normally shown in Epoch time
+(seconds since the beginning of 1970) 
+instead in the human-readable form used by default by the
+.B date
+command.
+
+.SH AUTHOR
+Dave Dykstra
+
+.SH COPYRIGHT
+Copyright \(co 2023 Fermi National Accelerator Laboratory
+
+.SH "SEE ALSO"
+htgettoken(1)
