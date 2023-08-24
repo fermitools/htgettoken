@@ -87,6 +87,12 @@ rm -rf $RPM_BUILD_ROOT
 # - Use wheels to build/install Python package, which simplified the entry
 #   points and improves (slightly) the metadata
 
+
+#- Fix the httokensh background process's check for its parent process.
+#  That is only a backup in case only the parent process is hard-killed,
+#  because normally the parent process kills the background process when
+#  the parent exits.
+
 * Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
 - Update httokensh to by default set the minimum vault token time to live to
   6 days, and to make sure that the background refresh never gets a new vault
