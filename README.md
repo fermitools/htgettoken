@@ -17,7 +17,7 @@ yum install htgettoken
 ```
 
 htgettoken and Vault are also integrated with 
-[HTCondor](https://htcondor.readthedocs.io/en/latest/admin-manual/setting-up-special-environments.html#using-vault-as-the-oauth-client).
+[HTCondor](https://htcondor.readthedocs.io/en/latest/admin-manual/file-and-cred-transfer.html#using-vault-as-the-oauth-client).
 It is available in HTCondor versions 9.0.6 and later.
 
 See this
