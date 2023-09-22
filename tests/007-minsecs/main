@@ -1,0 +1,24 @@
+# assumes vault token is already present and assumes any access token
+# cached in vault is not close to its expiration
+set -e
+# make sure there's normal token, not an exchanged token
+htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER
+EXPTIME="$(htdecodetoken|jq -r .exp)"
+# make sure that the same token is returned from cache the second try
+htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER
+EXPTIME2="$(htdecodetoken|jq -r .exp)"
+if [ "$EXPTIME" != "$EXPTIME2" ]; then
+    echo "The same token was not received twice from vault!"
+    exit 1
+fi
+# make sure that we don't request minsecs longer than the access token lifetime
+# by waiting a couple of seconds
+sleep 2
+NOW="$(date +%s)"
+let MINSECS=$EXPTIME-$NOW+1
+htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --minsecs=$MINSECS
+EXPTIME3="$(htdecodetoken|jq -r .exp)"
+if [ "$EXPTIME" = "$EXPTIME3" ]; then
+    echo "The access token was not renewed!"
+    exit 1
+fi

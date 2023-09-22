@@ -1,0 +1,20 @@
+if [ "$HASKERBEROS" != true ]; then
+    exit $SKIPCODE
+fi
+
+PRINCIPAL="$(kcron klist 2>/dev/null|sed -n 's/^Default principal: //p')"
+if [ -z "$PRINCIPAL" ]; then
+    echo "No kcron principal found"
+    exit $SKIPCODE
+fi
+
+CREDKEY="$(echo "$PRINCIPAL"|cut -d@ -f1)"
+
+set -e
+htdestroytoken
+# The first time it might go to oidc authentication, if it hasn't been
+# done in 30 days
+kcron htgettoken --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER
+# next time make sure it doesn't do oidc authentication
+htdestroytoken
+kcron htgettoken --nooidc --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER

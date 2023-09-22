@@ -1,0 +1,16 @@
+if [ "$HASKERBEROS" != true ]; then
+    exit $SKIPCODE
+fi
+PRINCIPALS="$(klist -l|grep DIR::|awk '{print $1}')"
+if [ $(echo "$PRINCIPALS"|wc -l) -lt 2 ];then
+    echo "No alternative kerberos principal found in klist -l"
+    exit $SKIPCODE
+fi
+MAINPRINCIPAL="$(echo "$PRINCIPALS"|head -1)"
+ALTPRINCIPAL="$(echo "$PRINCIPALS"|tail -n +2|head -1)"
+
+set -e
+htdestroytoken
+kswitch -p $ALTPRINCIPAL
+trap "kswitch -p $MAINPRINCIPAL" 0
+htgettoken --nooidc --nossh --kerbprincipal=$MAINPRINCIPAL -a $VAULTSERVER -i $ISSUER

@@ -1,0 +1,76 @@
+#!/bin/bash
+# Set of regression tests for htgettoken + htvault-config + token issuer
+# See .regress-config.template for variables to set
+
+ME=$(basename $0)
+
+usage()
+{
+    echo "$ME: [-c configfile] [testnumber-name] ..."
+    echo "  configfile defaults to .regress-config"
+    exit 2
+} >&2
+
+
+cd $(dirname $0)
+CONFIG=.regress-config
+
+if [ "$1" = "-c" ]; then
+    CONFIG="$2"
+    shift
+    shift
+fi
+
+if [[ "$1" == -* ]]; then
+    usage
+fi
+
+if [ ! -f $CONFIG ]; then
+    echo "$ME: $CONFIG not found!" >&2
+    exit 1
+fi
+
+NUMTESTS=0
+SUCCESSES=0
+FAILS=0
+SKIPS=0
+
+set -o allexport
+HTGETTOKENOPTS="-v $HTGETTOKENOPTS"
+SKIPCODE=250
+. $CONFIG
+
+TESTNAMES="$@"
+if [ -z "$TESTNAMES" ]; then
+    TESTNAMES="$(echo [0-9][0-9][0-9]-*)"
+fi
+for TESTNAME in $TESTNAMES; do
+    let NUMTESTS+=1
+    if [ -f $TESTNAME/main ]; then
+        echo "Running $TESTNAME/main"
+        bash $TESTNAME/main
+        RC="$?"
+        if [ "$RC" = 0 ]; then
+            echo "Succeeded!"
+            let SUCCESSES+=1
+        elif [ "$RC" = $SKIPCODE ]; then
+            echo "Skipped!"
+            let SKIPS+=1
+        else
+            echo "Failed!"
+            let FAILS+=1
+        fi
+    else
+        echo "$TESTNAME/main not found!" >&2
+        let FAILS+=1
+    fi
+    echo
+done
+
+echo "Tests:     $NUMTESTS"
+echo "Successes: $SUCCESSES"
+echo "Fails:     $FAILS"
+echo "Skipped:   $SKIPS"
+if [ $FAILS != 0 ]; then
+    exit 1
+fi

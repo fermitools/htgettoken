@@ -1,0 +1,12 @@
+URL="$(htgettoken --nooidc -a $VAULTSERVER -i $ISSUER --showbearerurl --nobearertoken)"
+
+if [ -z "$URL" ]; then
+    echo "Nothing came from stdout!"
+    exit 1
+fi
+if [[ "$URL" != https://$VAULTSERVER* ]]; then
+    echo "Stdout did not return a URL beginning with https://$VAULTSERVER!"
+    echo "Stdout was: $URL"
+    exit 1
+fi
+echo "Bearer URL is: $URL"

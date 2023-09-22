@@ -1,0 +1,24 @@
+# there are too many vault tokens created here to work with oidc authentication
+
+if [ "$HASKERBEROS" != true ] && [ "$HASSSH" != true ]; then
+    exit $SKIPCODE
+fi
+
+set -e
+htdestroytoken
+htgettoken --nooidc -a $VAULTSERVER -i $ISSUER --vaulttokenttl=1d
+VTPATH=/tmp/vt_u$(id -u)
+OLDVTOKEN="$(< $VTPATH)"
+htgettoken --nooidc -a $VAULTSERVER -i $ISSUER --vaulttokenttl=3d --vaulttokenminttl=2d
+VTOKEN="$(< $VTPATH)"
+if [ "$OLDVTOKEN" = "$VTOKEN" ]; then
+    echo "New vault token not issued when it should have been!"
+    exit 1
+fi
+OLDVTOKEN="$VTOKEN"
+htgettoken --nooidc -a $VAULTSERVER -i $ISSUER --vaulttokenminttl=2d
+VTOKEN="$(< $VTPATH)"
+if [ "$OLDVTOKEN" != "$VTOKEN" ]; then
+    echo "New vault token issued when it should not have been!"
+    exit 1
+fi
