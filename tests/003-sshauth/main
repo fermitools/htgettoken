@@ -1,0 +1,5 @@
+if [ "$HASSSH" != true ]; then
+    exit $SKIPCODE
+fi
+htdestroytoken
+htgettoken --nooidc --nokerberos -a $VAULTSERVER -i $ISSUER

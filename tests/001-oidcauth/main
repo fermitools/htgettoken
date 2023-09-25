@@ -1,0 +1,2 @@
+htdestroytoken
+htgettoken --nokerberos --nossh -a $VAULTSERVER -i $ISSUER

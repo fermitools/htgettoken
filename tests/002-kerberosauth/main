@@ -1,0 +1,5 @@
+if [ "$HASKERBEROS" != true ]; then
+    exit $SKIPCODE
+fi
+htdestroytoken
+htgettoken --nooidc --nossh -a $VAULTSERVER -i $ISSUER
