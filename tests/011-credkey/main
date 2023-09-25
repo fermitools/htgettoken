@@ -1,20 +1,26 @@
 if [ "$HASKERBEROS" != true ]; then
     exit $SKIPCODE
 fi
-
-PRINCIPAL="$(kcron klist 2>/dev/null|sed -n 's/^Default principal: //p')"
-if [ -z "$PRINCIPAL" ]; then
-    echo "No kcron principal found"
+if [ -z "$ROBOTKEYTAB" ]; then
     exit $SKIPCODE
 fi
 
-CREDKEY="$(echo "$PRINCIPAL"|cut -d@ -f1)"
+PRINCIPAL="$(klist -k $ROBOTKEYTAB|head -4|tail -1|awk '{print $2}')"
+if [ -z "$PRINCIPAL" ]; then
+    echo "Could not read principal from $ROBOTKEYTAB!"
+    exit 1
+fi
+CREDKEY="$(echo $PRINCIPAL|cut -d@ -f1)"
+ROLE="${ROBOTROLE:-default}"
 
+export KRB5CCNAME=KEYRING:session:$(id -u):$(shuf -i 1-100000000 -n 1)
 set -e
+kinit -kt $ROBOTKEYTAB $PRINCIPAL
+trap "kdestroy" 0
 htdestroytoken
 # The first time it might go to oidc authentication, if it hasn't been
 # done in 30 days
-kcron htgettoken --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER
+htgettoken --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER -r $ROLE
 # next time make sure it doesn't do oidc authentication
 htdestroytoken
-kcron htgettoken --nooidc --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER
+htgettoken --nooidc --nossh --credkey $CREDKEY -a $VAULTSERVER -i $ISSUER -r $ROLE
