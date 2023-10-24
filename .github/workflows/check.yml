@@ -1,0 +1,14 @@
+name: Check
+on:
+  pull_request:
+
+jobs:
+  pylint: 
+    name: pylint
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run pylint
+        uses: cclauss/GitHub-Action-for-pylint@0.7.0
+        with:
+          args: "apk add --no-cache krb5-dev libffi-dev; python setup.py egg_info; pip install -r htgettoken.egg-info/requires.txt; pylint -E *.py"
