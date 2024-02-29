@@ -136,16 +136,18 @@ set -m
 
 echo "Renewal log is at \$BEARER_TOKEN_FILE.log"
 {
+    # keep a copy of $PPID because it will change to 1 if parent dies
+    PARENTPID=$PPID
     echo htgettoken args are "${HTGETTOKENARGS[@]}"
     while true; do
         date
         echo "Renewal scheduled in $SLEEPSECS seconds"
         sleep $SLEEPSECS
         date
-        if kill -0 $PPID; then
+        if kill -0 $PARENTPID; then
             gettoken "exiting" 60
         else
-            echo "Parent process $PPID not running, exiting"
+            echo "Parent process $PARENTPID not running, exiting"
             exit 0
         fi
     done
