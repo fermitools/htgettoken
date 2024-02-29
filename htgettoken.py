@@ -439,8 +439,10 @@ def writeTokenSafely(tokentype, token, outfile):
         except:
             pass
         try:
-            fd, path = tempfile.mkstemp(
-                prefix=os.path.dirname(outfile) + '/.' + prog)
+            dir=os.path.dirname(outfile)
+            if dir == '':
+                dir = '.'
+            fd, path = tempfile.mkstemp(prefix='.' + prog, dir=dir)
             handle = os.fdopen(fd, 'w')
         except Exception as e:
             efatal("failure creating file", e)
