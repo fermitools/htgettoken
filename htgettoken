@@ -924,7 +924,7 @@ def main():
 
     credkey = options.credkey
     configfile = None
-    if credkey is None and (not options.nobearertoken or options.showbearerurl):
+    if credkey is None and (not options.nobearertoken or options.showbearerurl or not options.nossh):
         # Look for saved credkey, needed for figuring out the vault secretpath
         configfile = options.configdir + '/credkey-' + options.issuer + '-' + options.role
         configfile = os.path.expanduser(configfile)
