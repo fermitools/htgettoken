@@ -134,6 +134,7 @@ rm -rf $RPM_BUILD_ROOT
 #  because normally the parent process kills the background process when
 #  the parent exits.
 #- Fix the `-o`/`--outfile` option to work with relative paths. 
+#- Change the `--nobearertoken` option to always get and save a vault token.
 
 * Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
 - Update httokensh to by default set the minimum vault token time to live to
