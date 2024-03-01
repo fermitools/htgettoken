@@ -364,14 +364,20 @@ def checkVaultMinsecs(vaulttoken, vaulttokenminsecs):
     return False
 
 
-def getBearerToken(vaulttoken, vaultpath):
-    """Read a bearer token from vault.
+def getBearerToken(vaulttoken, vaultpath, vaultoutpath):
+    """Read a bearer token from vault using the given vaulttoken and vaultpath.
+    If vaultoutpath is not None, write out the vaulttoken to that path after
+    success getting a bearer token or if options.nobearertoken is true.
+    Also exit the program if options.nobearertoken is true.
     """
     if options.showbearerurl:
         print(vaultserver + '/v1/' + vaultpath)
         options.showbearerurl = False
     if options.nobearertoken:
-        # no bearer token needed, done
+        # no bearer token needed
+        # if vault token was obtained, write it out before exiting
+        if vaultoutpath != None:
+            writeTokenSafely("vault", vaulttoken, vaultoutpath)
         sys.exit(0)
     if options.verbose:
         log("  at path " + vaultpath)
@@ -407,7 +413,10 @@ def getBearerToken(vaulttoken, vaultpath):
     if 'data' in response and 'access_token' in response['data']:
         if showprogress:
             log(" succeeded")
-        return response['data']['access_token']
+        bearertoken = response['data']['access_token']
+        if vaultoutpath != None:
+            writeTokenSafely("vault", vaulttoken, vaultoutpath)
+        return bearertoken
     if showprogress:
         log(" failed")
     return None
@@ -580,7 +589,7 @@ def main():
                       help="print the bearer URL to stdout")
     parser.add_option("--nobearertoken",
                       action="store_true", default=False,
-                      help="only get a vault token, skip getting a bearer token")
+                      help="skip getting a bearer token, always getting only a vault token")
     parser.add_option("-o", "--outfile",
                       metavar="path",
                       help="path to save bearer token " +
@@ -818,6 +827,9 @@ def main():
                     response = {'auth' : {'client_token': vaulttoken}}
                     vaulttoken = getVaultToken(vaulttokensecs, response)
                     writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                elif options.nobearertoken:
+                    # force getting a new vault token
+                    tryget = False
                 elif vaulttokenminsecs > 0:
                     if options.verbose:
                         log("Making sure there is at least " + str(vaulttokenminsecs) + " seconds remaining")
@@ -830,7 +842,7 @@ def main():
                         log("Attempting to get bearer token from", vaultserver)
                         log("  using vault token from", vaulttokeninfile)
 
-                    bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+                    bearertoken = getBearerToken(vaulttoken, fullsecretpath, None)
             
         if bearertoken is None and not options.nokerberos:
             # Try kerberos authentication with vault
@@ -923,14 +935,10 @@ def main():
                     if showprogress:
                         log(" succeeded")
                     vaulttoken = getVaultToken(vaulttokensecs, response)
-                    if options.verbose:
+                    if options.verbose and not options.nobearertoken:
                         log("Attempting to get bearer token from " + vaultserver)
 
-                    bearertoken = getBearerToken(vaulttoken, fullsecretpath)
-
-                    if bearertoken is not None:
-                        # getting bearer token worked, write out vault token
-                        writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                    bearertoken = getBearerToken(vaulttoken, fullsecretpath, vaulttokenfile)
 
                 elif options.verbose:
                     log("Kerberos authentication failed")
@@ -1036,14 +1044,10 @@ def main():
                         if showprogress:
                             log(" succeeded")
                         vaulttoken = getVaultToken(vaulttokensecs, response)
-                        if options.verbose:
+                        if options.verbose and not options.nobearertoken:
                             log("Attempting to get bearer token from " + vaultserver)
 
-                        bearertoken = getBearerToken(vaulttoken, fullsecretpath)
-
-                        if bearertoken is not None:
-                            # getting bearer token worked, write out vault token
-                            writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+                        bearertoken = getBearerToken(vaulttoken, fullsecretpath, vaulttokenfile)
 
                     elif options.verbose:
                         log("ssh-agent authentication failed")
@@ -1247,6 +1251,8 @@ def main():
 
         vaulttoken = getVaultToken(vaulttokensecs, response)
         writeTokenSafely("vault", vaulttoken, vaulttokenfile)
+        if options.nobearertoken:
+            sys.exit(0)
 
         auth = response['auth']
         if 'metadata' not in auth:
@@ -1306,7 +1312,7 @@ def main():
         if options.verbose:
             log("Getting bearer token from " + vaultserver)
 
-        bearertoken = getBearerToken(vaulttoken, fullsecretpath)
+        bearertoken = getBearerToken(vaulttoken, fullsecretpath, None)
 
     if bearertoken is None:
         fatal("Failure getting token from " + vaultserver)
