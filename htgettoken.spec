@@ -133,6 +133,7 @@ rm -rf $RPM_BUILD_ROOT
 #  That is only a backup in case only the parent process is hard-killed,
 #  because normally the parent process kills the background process when
 #  the parent exits.
+#- Use newer `sts` secrets API for token exchanges.
 #- Fix the `-o`/`--outfile` option to work with relative paths. 
 #- Change the `--nobearertoken` option to always get and save a vault token.
 
