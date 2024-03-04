@@ -370,6 +370,8 @@ def getBearerToken(vaulttoken, vaultpath, vaultoutpath):
     success getting a bearer token or if options.nobearertoken is true.
     Also exit the program if options.nobearertoken is true.
     """
+    if (options.scopes is not None) or (options.audience is not None):
+        vaultpath = vaultpath.replace('/creds/', '/sts/')
     if options.showbearerurl:
         print(vaultserver + '/v1/' + vaultpath)
         options.showbearerurl = False
@@ -389,7 +391,7 @@ def getBearerToken(vaulttoken, vaultpath, vaultoutpath):
     if options.scopes is not None:
         params['scopes'] = options.scopes
     if options.audience is not None:
-        params['audience'] = options.audience
+        params['audiences'] = options.audience
     if options.debug:
         log("Reading from", url)
     headers = {'X-Vault-Token': vaulttoken}
