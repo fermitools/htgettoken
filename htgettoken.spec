@@ -32,9 +32,7 @@ Requires: python%{python3_pkgversion}-paramiko
 Requires: python%{python3_pkgversion}-urllib3
 # /usr/bin/httokendecode:
 Requires: jq
-%if 0%{?rhel} && 0%{?rhel} >= 8
 Recommends: scitokens-cpp
-%endif
 
 %description
 htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
@@ -52,11 +50,19 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %autosetup -n %{name}-%{version}
 
 %build
+%if 0%{?rhel} >= 9
+%py3_build_wheel
+%else
 %py3_build
+%endif
 
 %install
 # install the Python project
+%if 0%{?rhel} >= 9
+%py3_install_wheel %{name}-%{version}-*.whl
+%else
 %py3_install
+%endif
 # link httokendecode to htdecodetoken
 (cd %{buildroot}%{_bindir}/; ln -s htdecode httokendecode)
 # install man pages
@@ -71,6 +77,10 @@ ln -s htdecodetoken.1 %{buildroot}%{_datadir}/man/man1/httokendecode.1.gz
 rm -rf $RPM_BUILD_ROOT
 
 # -- changelog
+
+# - Use python wheels to build/install on el9.  It didn't work on el8 so
+#   the use of wheels was removed at the last minute before the 2.0 
+#   release (without removing it from the changelog like it should have).
 
 %changelog
 * Wed Jul 24 2024 Dave Dykstra <dwd@fnal.gov> 2.0-1
