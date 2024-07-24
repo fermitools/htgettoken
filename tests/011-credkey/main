@@ -1,3 +1,6 @@
+#WARNING: kcron credentials interfere badly with access to /nashome!
+#See SNOW tickets TASK0319666 and RITM2125276
+
 if [ "$HASKERBEROS" != true ]; then
     exit $SKIPCODE
 fi

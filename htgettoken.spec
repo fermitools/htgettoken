@@ -1,8 +1,6 @@
-%define downloads_version 1.8
-
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.20
+Version: 2.0
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -12,8 +10,8 @@ BuildArch: noarch
 Prefix: %{_prefix}
 
 # download with:
-# $ curl -o htgettoken-%{version}.tar.gz \
-#    https://codeload.github.com/fermitools/htgettoken/tar.gz/%{version}
+# $ curl -o htgettoken-%%{version}.tar.gz \
+#    https://codeload.github.com/fermitools/htgettoken/tar.gz/%%{version}
 Source0: %{name}-%{version}.tar.gz
 
 # rpmbuild dependencies
@@ -54,11 +52,11 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %autosetup -n %{name}-%{version}
 
 %build
-%py3_build_wheel
+%py3_build
 
 %install
 # install the Python project
-%py3_install_wheel %{name}-%{version}-*.whl
+%py3_install
 # link httokendecode to htdecodetoken
 (cd %{buildroot}%{_bindir}/; ln -s htdecode httokendecode)
 # install man pages
@@ -75,26 +73,25 @@ rm -rf $RPM_BUILD_ROOT
 # -- changelog
 
 %changelog
-# - Replace use of m2crypto and pyOpenSSL with urllib3
-# - Replace use of pykerberos with gssapi
-# - Use standard Requires for Python modules instead of PyInstaller
-# - Add --vaultcertname option to specify an alternative certificate name.
-#   That used to be an additional optional meaning of the --vaultalias option,
-#   but urllib3 requires only one name to match.
-# - Add setuptools build infrastructure
-# - Refactor htgettoken script into module with entry point.
-#   This enables invoking htgettoken as `htgettoken.main()` from Python.
-# - Use wheels to build/install Python package, which simplified the entry
-#   points and improves (slightly) the metadata
-
-
-#- Fix the httokensh background process's check for its parent process.
-#  That is only a backup in case only the parent process is hard-killed,
-#  because normally the parent process kills the background process when
-#  the parent exits.
-#- Use newer `sts` secrets API for token exchanges.
-#- Fix the `-o`/`--outfile` option to work with relative paths. 
-#- Change the `--nobearertoken` option to always get and save a vault token.
+* Wed Jul 24 2024 Dave Dykstra <dwd@fnal.gov> 2.0-1
+- Replace use of m2crypto and pyOpenSSL with urllib3
+- Replace use of pykerberos with gssapi
+- Use standard Requires for Python modules instead of PyInstaller
+- Add --vaultcertname option to specify an alternative certificate name.
+  That used to be an additional optional meaning of the --vaultalias option,
+  but urllib3 requires only one name to match.
+- Add setuptools build infrastructure
+- Refactor htgettoken script into module with entry point.
+  This enables invoking htgettoken as `htgettoken.main()` from Python.
+- Use wheels to build/install Python package, which simplified the entry
+  points and improves (slightly) the metadata
+- Fix the httokensh background process's check for its parent process.
+  That is only a backup in case only the parent process is hard-killed,
+  because normally the parent process kills the background process when
+  the parent exits.
+- Use newer `sts` secrets API for token exchanges.
+- Fix the `-o`/`--outfile` option to work with relative paths. 
+- Change the `--nobearertoken` option to always get and save a vault token.
 
 * Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
 - Update httokensh to by default set the minimum vault token time to live to
