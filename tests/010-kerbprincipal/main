@@ -11,6 +11,7 @@ ALTPRINCIPAL="$(echo "$PRINCIPALS"|tail -n +2|head -1)"
 
 set -e
 htdestroytoken
+set -x
 kswitch -p $ALTPRINCIPAL
-trap "kswitch -p $MAINPRINCIPAL" 0
+trap "set -x; kswitch -p $MAINPRINCIPAL" 0
 htgettoken --nooidc --nossh --kerbprincipal=$MAINPRINCIPAL -a $VAULTSERVER -i $ISSUER

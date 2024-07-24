@@ -28,10 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Build for CentOS 7, and Rockylinux >=8
+        # Build for Rockylinux >=8
         include:
-          - distro: centos
-            version: 7
           - distro: rockylinux
             version: 8
           - distro: rockylinux
@@ -76,10 +74,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Build for CentOS 7, and Rockylinux >=8
+        # Build for Rockylinux >=8
         include:
-          - distro: centos
-            version: 7
           - distro: rockylinux
             version: 8
           - distro: rockylinux
@@ -153,10 +149,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Build for CentOS 7, and Rockylinux >=8
+        # Build for Rockylinux >=8
         include:
-          - distro: centos
-            version: 7
           - distro: rockylinux
             version: 8
           - distro: rockylinux
