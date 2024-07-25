@@ -1,7 +1,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 2.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 
 License: BSD-3-Clause
 URL: https://github.com/fermitools/htgettoken
@@ -64,7 +64,7 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %py3_install
 %endif
 # link httokendecode to htdecodetoken
-(cd %{buildroot}%{_bindir}/; ln -s htdecode httokendecode)
+(cd %{buildroot}%{_bindir}/; ln -s htdecodetoken httokendecode)
 # install man pages
 mkdir -p %{buildroot}%{_datadir}/man/man1
 gzip -c %{name}.1 >%{buildroot}%{_datadir}/man/man1/%{name}.1.gz
@@ -78,11 +78,14 @@ rm -rf $RPM_BUILD_ROOT
 
 # -- changelog
 
-# - Use python wheels to build/install on el9.  It didn't work on el8 so
-#   the use of wheels was removed at the last minute before the 2.0 
-#   release (without removing it from the changelog like it should have).
 
 %changelog
+* Thu Jul 25 2024 Dave Dykstra <dwd@fnal.gov> 2.0-2
+- Fix broken httokendecode symlink.
+- Use python wheels to build/install on el9.  It didn't work on el8 so
+  the use of wheels was removed at the last minute before the 2.0-1
+  release (without removing it from the changelog like it should have).
+
 * Wed Jul 24 2024 Dave Dykstra <dwd@fnal.gov> 2.0-1
 - Replace use of m2crypto and pyOpenSSL with urllib3
 - Replace use of pykerberos with gssapi
