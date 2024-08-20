@@ -80,6 +80,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Fix htdecodetoken to work with token files that do not end in a newline.
+
 * Thu Jul 25 2024 Dave Dykstra <dwd@fnal.gov> 2.0-2
 - Fix broken httokendecode symlink.
 - Use python wheels to build/install on el9.  It didn't work on el8 so

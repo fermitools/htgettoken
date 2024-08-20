@@ -109,7 +109,8 @@ if [ -n "$TOKENFILE" ]; then
         echo "$TOKENFILE not found" >&2
         exit 1
     fi
-    read TOKEN <$TOKENFILE
+    # the -n is needed here for when there is no ending newline in the file
+    read TOKEN <$TOKENFILE || [ -n "$TOKEN" ]
 fi
 if [ -z "$TOKEN" ]; then
     echo "Token is empty" >&2
