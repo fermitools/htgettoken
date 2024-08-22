@@ -2,3 +2,4 @@ htgettoken-*.tar.gz
 htgettoken.egg-info/
 dist/
 man1/
+__pycache__/
