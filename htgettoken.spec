@@ -129,7 +129,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Wed Oct  8 2024 Dave Dykstra <dwd@fnal.gov> 1.21-1
+* Wed Oct  9 2024 Dave Dykstra <dwd@fnal.gov> 1.21-1
 - Fix the httokensh background process's check for its parent process.
   That is only a backup in case only the parent process is hard-killed,
   because normally the parent process kills the background process when
