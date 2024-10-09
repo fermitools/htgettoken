@@ -1,8 +1,8 @@
-%define downloads_version 1.8
+%define downloads_version 1.9
 
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 1.20
+Version: 1.21
 Release: 1%{?dist}
 License: BSD
 Group: Applications/System
@@ -129,13 +129,14 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-#- Fix the httokensh background process's check for its parent process.
-#  That is only a backup in case only the parent process is hard-killed,
-#  because normally the parent process kills the background process when
-#  the parent exits.
-#- Use newer `sts` secrets API for token exchanges.
-#- Fix the `-o`/`--outfile` option to work with relative paths. 
-#- Change the `--nobearertoken` option to always get and save a vault token.
+* Wed Oct  8 2024 Dave Dykstra <dwd@fnal.gov> 1.21-1
+- Fix the httokensh background process's check for its parent process.
+  That is only a backup in case only the parent process is hard-killed,
+  because normally the parent process kills the background process when
+  the parent exits.
+- Use newer `sts` secrets API for token exchanges.
+- Fix the `-o`/`--outfile` option to work with relative paths. 
+- Change the `--nobearertoken` option to always get and save a vault token.
 
 * Thu Aug 17 2023 Dave Dykstra <dwd@fnal.gov> 1.20-1
 - Update httokensh to by default set the minimum vault token time to live to
