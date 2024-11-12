@@ -499,7 +499,7 @@ def ttl2secs(ttl, msg):
 
 
 ### htgettoken main ####
-def main():
+def main(args=None):
     global options
     usagestr = "usage: %prog [-h] [otheroptions]"
     parser = OptionParser(usage=usagestr, version=version, prog=prog)
@@ -630,8 +630,10 @@ def main():
     # look for default options in the environment
     envopts = os.getenv("HTGETTOKENOPTS", "")
     envargs = shlex.split(envopts, True)
+    if args is None:
+        args = sys.argv[1:]
 
-    parseargs(parser, envargs + sys.argv[1:])
+    parseargs(parser, envargs + list(args))
 
     if options.optserver is not None:
         # read additional options from optserver
