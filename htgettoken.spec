@@ -81,6 +81,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 # - Fix htdecodetoken to work with token files that do not end in a newline.
+# - Support args in htgettoken.main() Python entry point.
 
 * Thu Jul 25 2024 Dave Dykstra <dwd@fnal.gov> 2.0-2
 - Fix broken httokendecode symlink.
