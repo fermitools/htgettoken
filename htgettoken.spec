@@ -1,7 +1,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.0
-Release: 2%{?dist}
+Version: 2.1
+Release: 1%{?dist}
 
 License: BSD-3-Clause
 URL: https://github.com/fermitools/htgettoken
@@ -80,8 +80,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Fix htdecodetoken to work with token files that do not end in a newline.
-# - Support args in htgettoken.main() Python entry point.
+* Tue Feb 25 2025 Dave Dykstra <dwd@fnal.gov> 2.1-1
+- Fix htdecodetoken to work with token files that do not end in a newline.
+- Support args in htgettoken.main() Python entry point.
 
 * Thu Jul 25 2024 Dave Dykstra <dwd@fnal.gov> 2.0-2
 - Fix broken httokendecode symlink.
