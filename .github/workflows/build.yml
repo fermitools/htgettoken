@@ -60,7 +60,7 @@ jobs:
               -bs \
               htgettoken.spec
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: srpm-${{ matrix.distro }}-${{ matrix.version }}
           path: "*.src.rpm"
@@ -84,7 +84,7 @@ jobs:
     container: ${{ matrix.distro }}:${{ matrix.version }}
     steps:
       - name: Download SRPM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: srpm-${{ matrix.distro }}-${{ matrix.version }}
 
@@ -135,7 +135,7 @@ jobs:
               rpm --query --package "${rpmf}" --requires
           done
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rpm-${{ matrix.distro }}-${{ matrix.version }}
           path: "*.rpm"
@@ -159,7 +159,7 @@ jobs:
     container: ${{ matrix.distro }}:${{ matrix.version }}
     steps:
       - name: Download RPMs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: rpm-${{ matrix.distro }}-${{ matrix.version }}
 
