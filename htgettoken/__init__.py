@@ -84,21 +84,6 @@ def log(*args, **kwargs):
     print(" ".join(map(str,args)), file=logfile, **kwargs)
 
 
-class HtgettokenHandler(logging.StreamHandler):
-    """Custom logger handler for urllib3 to send output to our log function.
-    """
-    def __init__(self):
-        logging.StreamHandler.__init__(self)
-    def emit(self, record):
-        log(self.format(record))
-
-root_logger = logging.getLogger()
-log_format = '%(name)s - %(levelname)s - %(message)s'
-log_handler = HtgettokenHandler()
-log_handler.setFormatter(logging.Formatter(log_format))
-root_logger.addHandler(log_handler)
-
-
 def logerr(*args, **kwargs):
     """Always print to stderr.
     """
