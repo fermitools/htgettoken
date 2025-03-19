@@ -696,10 +696,10 @@ def main(args=None):
         logfile=sys.stdout
         if options.debug:
             log("Enabling HTTPConnection debugging")
-            # Unfortunately in urllib3 this only ever prints to stdout,
+            # Unfortunately in http.client this only ever prints to stdout,
             # so only enable the HTTPConnection debugging when not needing
             # to parse stdout
-            http.client.HTTPConnection.debuglevel = 5
+            http.client.HTTPConnection.debuglevel = 1
 
     if not options.nooidc and not sys.stdout.isatty() \
                 and not sys.stderr.isatty() and not sys.stdin.isatty():
