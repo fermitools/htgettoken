@@ -84,21 +84,6 @@ def log(*args, **kwargs):
     print(" ".join(map(str,args)), file=logfile, **kwargs)
 
 
-class HtgettokenHandler(logging.StreamHandler):
-    """Custom logger handler for urllib3 to send output to our log function.
-    """
-    def __init__(self):
-        logging.StreamHandler.__init__(self)
-    def emit(self, record):
-        log(self.format(record))
-
-root_logger = logging.getLogger()
-log_format = '%(name)s - %(levelname)s - %(message)s'
-log_handler = HtgettokenHandler()
-log_handler.setFormatter(logging.Formatter(log_format))
-root_logger.addHandler(log_handler)
-
-
 def logerr(*args, **kwargs):
     """Always print to stderr.
     """
@@ -711,10 +696,10 @@ def main(args=None):
         logfile=sys.stdout
         if options.debug:
             log("Enabling HTTPConnection debugging")
-            # Unfortunately in urllib3 this only ever prints to stdout,
+            # Unfortunately in http.client this only ever prints to stdout,
             # so only enable the HTTPConnection debugging when not needing
             # to parse stdout
-            http.client.HTTPConnection.debuglevel = 5
+            http.client.HTTPConnection.debuglevel = 1
 
     if not options.nooidc and not sys.stdout.isatty() \
                 and not sys.stderr.isatty() and not sys.stdin.isatty():
