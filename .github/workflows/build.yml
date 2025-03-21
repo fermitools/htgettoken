@@ -20,11 +20,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tarball:
+    name: Tarball
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get source code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install build requirements
+        run: python -m pip install build
+
+      - name: Create distributions
+        run: python -m build . --sdist --wheel --outdir .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: htgettoken-*.tar.*
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: htgettoken*.whl
+          if-no-files-found: error
+
   # -- RPM builds --
 
   # Build the Source RPM
   rhel-srpm:
     name: EL ${{ matrix.version }} (${{ matrix.distro }}) source package
+    needs:
+      - tarball
     strategy:
       fail-fast: false
       matrix:
@@ -36,29 +70,23 @@ jobs:
             version: 9
     runs-on: ubuntu-latest
     container: ${{ matrix.distro }}:${{ matrix.version }}
+    env:
+      TARBALL: "htgettoken-*.tar.*"
     steps:
-      - name: Get source code
-        uses: actions/checkout@v3
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: tarball
 
       - name: Configure SRPM build tools
         run: |
-          yum -y install \
-              make \
-              python-srpm-macros \
+          dnf -y install \
+              "*-srpm-macros" \
               rpm-build \
-              yum-utils \
           ;
 
-      - name: Create distributions
-        run: make sources
-
       - name: Create source package
-        run: |
-          rpmbuild \
-              --define "_sourcedir $(pwd)" \
-              --define "_srcrpmdir $(pwd)" \
-              -bs \
-              htgettoken.spec
+        run: rpmbuild -ts --define "_srcrpmdir $(pwd)" ${TARBALL}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -96,24 +124,20 @@ jobs:
           dnf config-manager --set-enabled crb
 
       - name: Configure EPEL
-        run: yum -y install epel-release
+        run: dnf -y install epel-release
 
       - name: Install build tools
         run: |
-          yum -y -q install \
+          dnf -y -q install \
               rpm-build \
-              yum-utils \
+              "dnf-command(builddep)" \
           ;
 
-      - name: Install epel-rpm-macros
-        if: matrix.version < 9
-        run: yum -y -q install epel-rpm-macros
-
       - name: Install build dependencies
-        run: yum-builddep -y htgettoken-*.src.rpm
+        run: dnf builddep -y htgettoken-*.src.rpm
 
       - name: List installed packages
-        run: yum list installed
+        run: dnf list installed
 
       - name: Build binary packages
         run: |
@@ -164,10 +188,10 @@ jobs:
           name: rpm-${{ matrix.distro }}-${{ matrix.version }}
 
       - name: Configure EPEL
-        run: yum -y install epel-release
+        run: dnf -y install epel-release
 
       - name: Install RPMs
-        run: yum -y install *.rpm
+        run: dnf -y install *.rpm
 
       - name: Test htgettoken
         run: /usr/bin/htgettoken --help
