@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.1
+Version: 2.2
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -71,9 +71,11 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Add BuildRequires python3-devel to generate correct Python metadata.
-# - Remove explicit Requires for python dependencies, rely on Python metadata.
-# - Always build with wheels.
+* Fri Mar 21 2025 Dave Dykstra <dwd@fnal.gov> 2.2-1
+- Add BuildRequires python3-devel to generate correct Python metadata.
+- Remove explicit Requires for python dependencies, rely on Python metadata.
+- Always build with wheels.
+- Remove Python root logger configuration.
 
 * Tue Feb 25 2025 Dave Dykstra <dwd@fnal.gov> 2.1-1
 - Fix htdecodetoken to work with token files that do not end in a newline.
