@@ -14,22 +14,21 @@ Prefix: %{_prefix}
 #    https://codeload.github.com/fermitools/htgettoken/tar.gz/%%{version}
 Source0: %{name}-%{version}.tar.gz
 
-# rpmbuild dependencies
-BuildRequires: python-rpm-macros
-BuildRequires: python3-rpm-macros
-
 # build dependencies
-BuildRequires: python3
-BuildRequires: python%{python3_pkgversion}-pip
-BuildRequires: python%{python3_pkgversion}-setuptools
-BuildRequires: python%{python3_pkgversion}-wheel
+BuildRequires: python3-devel
+BuildRequires: python3dist(pip)
+BuildRequires: python3dist(setuptools)
+BuildRequires: python3dist(wheel)
 
 # -- Package: htgettoken
 
 # /usr/bin/htgettoken:
-Requires: python%{python3_pkgversion}-gssapi
-Requires: python%{python3_pkgversion}-paramiko
-Requires: python%{python3_pkgversion}-urllib3
+# For RHEL>=9 all requirements automatically provided by Python metadata
+%if 0%{?rhel} && 0%{?rhel} < 9
+Requires: python3dist(gssapi)
+Requires: python3dist(paramiko)
+Requires: python3dist(urllib3)
+%endif
 # /usr/bin/httokendecode:
 Requires: jq
 Recommends: scitokens-cpp
@@ -50,19 +49,11 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %autosetup -n %{name}-%{version}
 
 %build
-%if 0%{?rhel} >= 9
 %py3_build_wheel
-%else
-%py3_build
-%endif
 
 %install
 # install the Python project
-%if 0%{?rhel} >= 9
 %py3_install_wheel %{name}-%{version}-*.whl
-%else
-%py3_install
-%endif
 # link httokendecode to htdecodetoken
 (cd %{buildroot}%{_bindir}/; ln -s htdecodetoken httokendecode)
 # install man pages
@@ -71,7 +62,7 @@ gzip -c %{name}.1 >%{buildroot}%{_datadir}/man/man1/%{name}.1.gz
 for f in %{name} htdestroytoken htdecodetoken httokensh; do
     gzip -c $f.1 >%{buildroot}%{_datadir}/man/man1/$f.1.gz
 done
-ln -s htdecodetoken.1 %{buildroot}%{_datadir}/man/man1/httokendecode.1.gz 
+ln -s htdecodetoken.1 %{buildroot}%{_datadir}/man/man1/httokendecode.1.gz
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -80,6 +71,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Add BuildRequires python3-devel to generate correct Python metadata.
+# - Remove explicit Requires for python dependencies, rely on Python metadata.
+# - Always build with wheels.
+
 * Tue Feb 25 2025 Dave Dykstra <dwd@fnal.gov> 2.1-1
 - Fix htdecodetoken to work with token files that do not end in a newline.
 - Support args in htgettoken.main() Python entry point.
