@@ -1,7 +1,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
 Version: 2.2
-Release: 1%{?dist}
+Release: 2%{?dist}
 
 License: BSD-3-Clause
 URL: https://github.com/fermitools/htgettoken
@@ -54,6 +54,9 @@ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault
 %install
 # install the Python project
 %py3_install_wheel %{name}-%{version}-*.whl
+# add -I to the shebang on the main program to ignore PYTHONPATH
+%define py3_shebang_flags I
+%py3_shebang_fix %{buildroot}%{_bindir}/%{name}
 # link httokendecode to htdecodetoken
 (cd %{buildroot}%{_bindir}/; ln -s htdecodetoken httokendecode)
 # install man pages
@@ -71,6 +74,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Thu May  8 2025 Dave Dykstra <dwd@fnal.gov> 2.2-2
+- Add "-I" to the shebang on /usr/bin/htgettoken to ignore PYTHONPATH
+  and user libraries.
+
 * Fri Mar 21 2025 Dave Dykstra <dwd@fnal.gov> 2.2-1
 - Add BuildRequires python3-devel to generate correct Python metadata.
 - Remove explicit Requires for python dependencies, rely on Python metadata.
