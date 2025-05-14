@@ -1,2 +1,7 @@
 htdestroytoken
+set -ex
 htgettoken --nokerberos --nossh -a $VAULTSERVER -i $ISSUER
+if [ -n "$GROUPSUBPAT" ]; then
+    # also check the sub from oidc flow (others in test 014)
+    htdecodetoken | jq -r .sub | grep -v $GROUPSUBPAT
+fi
