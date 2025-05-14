@@ -11,3 +11,4 @@
     # If the release Z in htgettoken.spec is not 1, instead use tag vX.Y-Z
     git push --tags
     git push upstream --tags
+6. Draft a release message in github based on the changelog.
