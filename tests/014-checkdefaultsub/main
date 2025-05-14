@@ -1,0 +1,24 @@
+if [ -z "$GROUPSUBPAT" ]; then
+    exit $SKIPCODE
+fi
+set -ex
+htgettoken --nokerberos --nooidc --nossh -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
+EXPTIME="$(htdecodetoken|jq -r .exp)"
+
+# check sub for token exchange
+htgettoken --nossh -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
+htdecodetoken | jq -r .sub | grep -v $GROUPSUBPAT
+
+# check sub for refresh
+# make sure that we don't request minsecs longer than the access token lifetime
+# by waiting a couple of seconds
+sleep 2
+NOW="$(date +%s)"
+let MINSECS=$EXPTIME-$NOW+1
+htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --minsecs=$MINSECS
+EXPTIME2="$(htdecodetoken|jq -r .exp)"
+if [ "$EXPTIME" = "$EXPTIME2" ]; then
+    echo "The access token was not renewed!"
+    exit 1
+fi
+htdecodetoken | jq -r .sub | grep -v $GROUPSUBPAT
