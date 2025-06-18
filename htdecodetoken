@@ -11,7 +11,7 @@ usage()
     echo 'Decodes a JSON Web Token'
     echo '  -a: show algorithm portion of JWT'
     echo '  -H: show dates in human readable format instead of epoch'
-    echo '  -s: skip scitokens-verify validation (cannot be used with -f).'
+    echo '  -s: skip scitokens-verify validation (cannot be used with -f)'
     echo '        This is the default if stdout is not a TTY, or if scitokens-verify' 
     echo '        is not available in the PATH.'
     echo '  -f: force scitokens-verify validation (cannot be used with -s)'
