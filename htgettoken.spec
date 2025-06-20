@@ -74,6 +74,8 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Add the new -s and -f options to the htdecodetoken usage.
+
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.3-1
 - Add "-s" and "-f" options to htdecodetoken and default it to "-s" when
   stdout is not a TTY.

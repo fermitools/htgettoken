@@ -6,7 +6,7 @@
 
 usage()
 {
-    echo 'Usage: htdecodetoken [-a] [-H] [file]'
+    echo 'Usage: htdecodetoken [-a] [-H] [-s|-f] [file]'
     echo
     echo 'Decodes a JSON Web Token'
     echo '  -a: show algorithm portion of JWT'
