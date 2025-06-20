@@ -11,11 +11,14 @@ usage()
     echo 'Decodes a JSON Web Token'
     echo '  -a: show algorithm portion of JWT'
     echo '  -H: show dates in human readable format instead of epoch'
+    echo '  -s: skip scitokens-verify validation (cannot be used with -f)'
+    echo '        This is the default if stdout is not a TTY, or if scitokens-verify' 
+    echo '        is not available in the PATH.'
+    echo '  -f: force scitokens-verify validation (cannot be used with -s)'
     echo 'File name may be "-" to read from stdin.'
     echo 'If file name not given, follows WLCG Bearer Token Discovery'
     echo '  which is to first try $BEARER_TOKEN, next $BEARER_TOKEN_FILE,'
     echo '  and next ${XDG_RUNTIME_DIR:-/tmp}/bt_u`id -u`.'
-    echo 'If scitokens-verify is available, will also validate the token.'
     exit 1
 } >&2
 
@@ -68,10 +71,18 @@ human_dates() {
 
 set -e
 
+# If stdout is not a TTY, we should not validate the token with scitokens-verify by default
+SKIPVERIFY=false
+if [ ! -t 1 ]; then
+    SKIPVERIFY=true
+fi
+
 SHOWALG=false
 HUMANDATE=false
+SKIPVERIFYFLAGSET=false
+FORCEVERIFYFLAGSET=false
 NUMSHIFT=0
-while getopts ":aH" opt; do
+while getopts ":aHsf" opt; do
     case "$opt" in
        a)
           SHOWALG=true
@@ -79,6 +90,24 @@ while getopts ":aH" opt; do
           ;;
        H)
           HUMANDATE=true
+          (( NUMSHIFT+=1 ))
+          ;;
+       s)
+          if "$FORCEVERIFYFLAGSET" ; then
+            echo "Cannot use both -s and -f options together" >&2
+            usage
+          fi
+          SKIPVERIFY=true
+          SKIPVERIFYFLAGSET=true
+          (( NUMSHIFT+=1 ))
+          ;;
+       f)
+          if "$SKIPVERIFYFLAGSET" ; then
+              echo "Cannot use both -s and -f options together" >&2
+              usage
+          fi
+          SKIPVERIFY=false
+          FORCEVERIFYFLAGSET=true
           (( NUMSHIFT+=1 ))
           ;;
        *)
@@ -125,6 +154,12 @@ if "$HUMANDATE"  ; then
    echo $READABLE | jq .
 else
    echo "$JWT" | jq .
+fi
+RET=$?
+
+if "$SKIPVERIFY" ; then
+    # If we want to skip token verification, exit now
+    exit $RET
 fi
 
 set +e
