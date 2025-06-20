@@ -1,7 +1,7 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.2
-Release: 2%{?dist}
+Version: 2.3
+Release: 1%{?dist}
 
 License: BSD-3-Clause
 URL: https://github.com/fermitools/htgettoken
@@ -74,6 +74,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.3-1
+- Add "-s" and "-f" options to htdecodetoken and default it to "-s" when
+  stdout is not a TTY.
+
 * Thu May  8 2025 Dave Dykstra <dwd@fnal.gov> 2.2-2
 - Add "-I" to the shebang on /usr/bin/htgettoken to ignore PYTHONPATH
   and user libraries.
