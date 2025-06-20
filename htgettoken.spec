@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.3
+Version: 2.4
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -74,7 +74,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Add the new -s and -f options to the htdecodetoken usage.
+* Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.4-1
+- Add the new -s and -f options to the htdecodetoken usage summary.
+- Add a -v option to htdecodetoken to show the token source.
 
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.3-1
 - Add "-s" and "-f" options to htdecodetoken and default it to "-s" when
