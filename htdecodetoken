@@ -6,7 +6,7 @@
 
 usage()
 {
-    echo 'Usage: htdecodetoken [-a] [-H] [-s|-f] [file]'
+    echo 'Usage: htdecodetoken [-a] [-H] [-s|-f] [-v] [file]'
     echo
     echo 'Decodes a JSON Web Token'
     echo '  -a: show algorithm portion of JWT'
@@ -15,6 +15,7 @@ usage()
     echo '        This is the default if stdout is not a TTY, or if scitokens-verify' 
     echo '        is not available in the PATH.'
     echo '  -f: force scitokens-verify validation (cannot be used with -s)'
+    echo '  -v: enable verbose mode, showing in stderr where token came from'
     echo 'File name may be "-" to read from stdin.'
     echo 'If file name not given, follows WLCG Bearer Token Discovery'
     echo '  which is to first try $BEARER_TOKEN, next $BEARER_TOKEN_FILE,'
@@ -44,7 +45,6 @@ decode_jwt() {
 
 
 human_dates() {
-
     local wrd
     local w1
     local date
@@ -77,12 +77,13 @@ if [ ! -t 1 ]; then
     SKIPVERIFY=true
 fi
 
+VERBOSE=false
 SHOWALG=false
 HUMANDATE=false
 SKIPVERIFYFLAGSET=false
 FORCEVERIFYFLAGSET=false
 NUMSHIFT=0
-while getopts ":aHsf" opt; do
+while getopts ":vaHsf" opt; do
     case "$opt" in
        a)
           SHOWALG=true
@@ -110,6 +111,10 @@ while getopts ":aHsf" opt; do
           FORCEVERIFYFLAGSET=true
           (( NUMSHIFT+=1 ))
           ;;
+       v) 
+          VERBOSE=true
+          (( NUMSHIFT+=1 ))
+          ;;
        *)
           usage
     esac
@@ -121,12 +126,18 @@ TOKENFILE=""
 if [ $# = 0 ]; then
     if [ -n "$BEARER_TOKEN" ]; then
         TOKEN="$BEARER_TOKEN"
+        if $VERBOSE; then
+            echo 'Token source: $BEARER_TOKEN' >&2
+        fi
     else
         TOKENFILE="${BEARER_TOKEN_FILE:-${XDG_RUNTIME_DIR:-/tmp}/bt_u`id -u`}"
     fi
 elif [ $# = 1 ]; then
     if [ "$1" = - ]; then
         read TOKEN # from stdin
+        if $VERBOSE; then
+            echo 'Token source: stdin' >&2
+        fi
     else
         TOKENFILE="$1"
     fi
@@ -140,6 +151,9 @@ if [ -n "$TOKENFILE" ]; then
     fi
     # the -n is needed here for when there is no ending newline in the file
     read TOKEN <$TOKENFILE || [ -n "$TOKEN" ]
+    if $VERBOSE; then
+        echo "Token source: $TOKENFILE" >&2
+    fi
 fi
 if [ -z "$TOKEN" ]; then
     echo "Token is empty" >&2
