@@ -15,7 +15,7 @@
 from __future__ import print_function
 
 prog = "htgettoken"
-version = "2.2"
+version = "2.3"
 
 import os
 import sys
