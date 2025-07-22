@@ -16,6 +16,10 @@ After enabling the OSG repositories, do this as root to install it:
 yum install htgettoken
 ```
 
+Alternatively, it can be installed from
+[pypi](https://pypi.org/project/htgettoken/)
+with `pip install htgettoken`.
+
 htgettoken and Vault are also integrated with 
 [HTCondor](https://htcondor.readthedocs.io/en/latest/admin-manual/file-and-cred-transfer.html#using-vault-as-the-oauth-client).
 It is available in HTCondor versions 9.0.6 and later.
