@@ -1,0 +1,3 @@
+usr/bin/ht*
+usr/lib/python*/*-packages/ht*
+usr/share/man/man1/*
