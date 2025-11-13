@@ -1,5 +1,5 @@
-<!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Thu Aug 17 11:56:12 2023 -->
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Thu Nov 13 15:57:54 2025 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -46,7 +46,7 @@
 
 
 <p style="margin-left:11%; margin-top: 1em"><b>htdestroytoken</b>
-[-q]</p>
+[-h] [-q] [-f [htgettoken options]]&quot;</p>
 
 <h2>DESCRIPTION
 <a name="DESCRIPTION"></a>
@@ -55,15 +55,21 @@
 
 
 <p style="margin-left:11%; margin-top: 1em"><b>htdestroytoken</b>
-removes a bearer token found by WLCG Bearer Token Discovery
-and also removes a vault token found in the default location
-used by <b>htgettoken.</b></p>
+by default removes a bearer token found by WLCG Bearer Token
+Discovery and also removes a vault token found either by the
+environment variable $VAULT_TOKEN_FILE or in the default
+location used by <b>htgettoken</b>.</p>
 
 <p style="margin-left:11%; margin-top: 1em">Note that the
-vault server additionally caches bearer tokens, so the next
-time that <b>htgettoken</b> is run the same bearer token
-might be returned unless a new one is forced to be retrieved
-with either oidc authentication or with an htgettoken
+vault server additionally caches refresh tokens and bearer
+tokens, so this alone does not completely clear them. The
+<i>-f</i> option (described below) can remove the refresh
+token to force a new oidc authentication. If that is not
+used and <b>htgettoken</b> is subsequently run and gets a
+new vault token with one of the non-oidc authentication
+methods, it is possible that the same bearer token might be
+returned from the vault cache unless a new one is forced to
+be retrieved with an <b>htgettoken</b>
 <i>&minus;&minus;minsecs</i> option.</p>
 
 <h2>OPTIONS
@@ -81,15 +87,42 @@ options are recognized:</p>
 <td width="3%">
 
 
+<p><b>&minus;h</b></p></td>
+<td width="8%"></td>
+<td width="32%">
+
+
+<p>Show help message.</p></td>
+<td width="46%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="3%">
+
+
 <p><b>&minus;q</b></p></td>
 <td width="8%"></td>
-<td width="30%">
+<td width="32%">
 
 
-<p>Do removals silently</p></td>
-<td width="48%">
+<p>Do removals silently.</p></td>
+<td width="46%">
 </td></tr>
 </table>
+
+<p style="margin-left:11%;"><b>&minus;f [htgettoken
+options]</b></p>
+
+<p style="margin-left:22%;">Force a removal of the refresh
+token in vault before removal of the vault token, if the
+vault token is valid. This runs <b>htgettoken</b> to locate
+the path in vault to remove, so sufficient options to locate
+that path such as <i>&minus;a</i>, <i>&minus;i</i> and
+possibly <i>&minus;r</i> need to either be passed on the
+rest of the command line or in the $HTGETTOKENOPTS
+environment variable. If this option is given and the
+removal of the refresh token fails, the command will exit
+and not remove the vault or bearer tokens.</p>
 
 <h2>AUTHOR
 <a name="AUTHOR"></a>

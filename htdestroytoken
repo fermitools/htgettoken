@@ -1,21 +1,67 @@
 #!/bin/bash
 
-VERBOSE=true
-if [ "$1" = "-q" ]; then
-    VERBOSE=false
-    shift
-fi
+ME=htdestroytoken
 
-if [ $# != 0 ]; then
-    echo "Usage: htdestroytoken [-q]" >&2
-    echo "Removes bearer and vault tokens" >&2
-    echo "-q means to do it silently" >&2
+usage()
+{
+    echo "Usage: $ME [-h] [-q] [-f [htgettoken options]]"
+    echo "Removes bearer and vault tokens if present"
+    echo "  -h prints this help message and exits"
+    echo "  -q do removals silently"
+    echo "  -f first force removal of refresh token from vault, if vault token is valid."
+    echo "     Runs htgettoken to find the vault path so requires sufficient htgettoken"
+    echo "     options on command line or in \$HTGETTOKENOPTS."
+    echo "The location of the bearer token can be set by \$BEARER_TOKEN_FILE"
+    echo "  and the location of the vault token can be set by \$VAULT_TOKEN_FILE."
     exit 2
-fi
+} >&2
+
+VERBOSE=true
+RMREFRESH=false
+HTGETOPTS=""
+for ARG; do
+    case $ARG in
+        -h) usage;;
+        -q) VERBOSE=false; HTGETOPTS="$HTGETOPTS -q";;
+        -f) RMREFRESH=true;;
+        *)  if $RMREFRESH; then
+                HTGETOPTS="$HTGETOPTS $ARG"
+            else
+                usage
+            fi;;
+    esac
+done
 
 # UID is a standard bash variable
+VTFILE="/tmp/vt_u$UID"
+if [ -n "$VAULT_TOKEN_FILE" ]; then
+    VTFILE="$VAULT_TOKEN_FILE"
+    HTGETOPTS="$HTGETOPTS --vaulttokenfile=$VTFILE"
+fi
+if $RMREFRESH && [ -f "$VTFILE" ]; then
+    if ( [ -z "$HTGETOPTS" ] || [ "$HTGETOPTS" = "-q" ] ) \
+                && [ -z "$HTGETTOKENOPTS" ]; then
+        echo "$ME: no htgettoken options were given" >&2
+        usage
+    fi
+    BEARERURL="$(htgettoken $HTGETOPTS --novaulttoken --nobearertoken --showbearerurl)"
+    if [ -z "$BEARERURL" ]; then
+        echo "$ME: Unable to obtain vault URL to remove refresh token" >&2
+        exit 3
+    fi
+    if $VERBOSE; then
+        echo "Deleting refresh token"
+        echo "  at path $BEARERURL"
+    fi
+    # be careful to not let the vault token show up in a ps list; send to stdin
+    if ! (echo -n "X-Vault-Token: ";cat $VTFILE) | \
+                curl -q -f -m 5 -H @- -X DELETE "$BEARERURL"; then
+        echo "$ME: Unable to delete refresh token" >&2
+        exit 3
+    fi
+fi
 TOKENFILE="${BEARER_TOKEN_FILE:-${XDG_RUNTIME_DIR:-/tmp}/bt_u$UID}"
-for FILE in $TOKENFILE /tmp/vt_u$UID*; do
+for FILE in $TOKENFILE ${VTFILE}; do
     if [ -f "$FILE" ]; then
         if $VERBOSE; then
             echo "Removing $FILE"

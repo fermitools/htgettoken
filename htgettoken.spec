@@ -74,8 +74,12 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Add htdestroytoken -f option to force a removal of a refresh token in
+#   vault.
+# - Add htgettoken --novaulttoken option as an alias for --noiodc, --nossh,
+#   and --nokerberos.
 # - Again fix --showbearerurl to work in combination with --nobearertoken.
-#   That was fixed in 1.17 but broken in 1.21 and 2.0.
+#   That was fixed in 1.17 but broke in 1.21 and 2.0.
 
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.4-1
 - Add the new -s and -f options to the htdecodetoken usage summary.

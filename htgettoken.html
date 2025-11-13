@@ -1,5 +1,5 @@
-<!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Thu Aug 17 12:51:42 2023 -->
+<!-- Creator     : groff version 1.22.3 -->
+<!-- CreationDate: Thu Nov 13 15:57:54 2025 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -175,7 +175,7 @@ issuer name is &quot;default&quot;.</p>
 <p style="margin-left:22%;">The name of the issuer role, as
 configured in the vault server. The default role name is
 &quot;default&quot;. Different roles for the same issuer map
-to different token scopes as configured in vault. &nbsp;</p>
+to different token scopes as configured in vault.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;nokerberos</b></p>
@@ -201,7 +201,7 @@ on the current machine when a cache collection is available,
 for example when $KRB5CCNAME begins with &quot;DIR:&quot;.
 The default is the currently selected principal. See the
 <b>kswitch</b> command and the &quot;-l&quot; option of the
-<b>klist</b> command for more information. &nbsp;</p>
+<b>klist</b> command for more information.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;nooidc</b></p>
@@ -218,7 +218,7 @@ OIDC authentication. The default is</p>
 <p style="margin-left:32%;">auth/oidc-%issuer/oidc</p>
 
 <p style="margin-left:22%;">where %issuer is the value from
-the <i>&minus;&minus;issuer</i> option. &nbsp;</p>
+the <i>&minus;&minus;issuer</i> option.</p>
 
 <p style="margin-left:11%;"><b>&minus;&minus;nossh</b></p>
 
@@ -231,7 +231,7 @@ authentication.</p>
 <p style="margin-left:22%;">The path in vault for doing
 ssh-agent authentication. The default is</p>
 
-<p style="margin-left:32%;">auth/ssh &nbsp;</p>
+<p style="margin-left:32%;">auth/ssh</p>
 
 
 <p style="margin-left:11%;"><b>&minus;&minus;registerssh</b></p>
@@ -243,6 +243,13 @@ is already available and does the normal OIDC flow and then
 registers the public keys before storing the vault token and
 access token. Must be allowed in the configuration of the
 vault server in order to work.</p>
+
+
+<p style="margin-left:11%;"><b>&minus;&minus;novaulttoken</b></p>
+
+<p style="margin-left:22%;">Disable all authentication
+methods that get vault tokens. Currently this equivalent to
+<i>&minus;&minus;nooidc&nbsp;&minus;&minus;nokerberos&nbsp;&minus;&minus;nossh</i>.</p>
 
 
 <p style="margin-left:11%;"><b>&minus;c&nbsp;path</b>,&nbsp;<b>&minus;&minus;configdir=path</b></p>
@@ -349,11 +356,12 @@ functionality.</p>
 
 <p style="margin-left:11%;"><b>&minus;&minus;nobearertoken</b></p>
 
-<p style="margin-left:22%;">Skip getting a bearer token;
-only get a vault token.</p>
+<p style="margin-left:22%;">Skip getting a bearer token.
+Always gets a vault token except in combination with
+<b>&minus;&minus;showbearerurl</b>.</p>
 
 
-<p style="margin-left:11%;"><b>&minus;o&nbsp;path</b>,&nbsp;<b>&minus;&minus;out=path</b></p>
+<p style="margin-left:11%;"><b>&minus;o&nbsp;path</b>,&nbsp;<b>&minus;&minus;outfile=path</b></p>
 
 <p style="margin-left:22%;">The path of the file used to
 store the bearer token on the local machine. The default is
