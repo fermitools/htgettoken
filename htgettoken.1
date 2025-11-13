@@ -234,7 +234,9 @@ need the rest of the
 functionality.
 .TP
 .B \-\-nobearertoken
-Skip getting a bearer token; only get a vault token.
+Skip getting a bearer token.  Always gets a vault token except in
+combination with 
+.BR \-\-showbearerurl .
 .TP
 .BR \-o\ path , \ \-\-out=path
 The path of the file used to store the bearer token on the local
