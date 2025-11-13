@@ -4,7 +4,7 @@ fi
 
 # assumes vault token is already present
 set -e
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --audience="$TESTAUDIENCES"
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --audience="$TESTAUDIENCES"
 
 TOKENAUDIENCES="$(echo $(htdecodetoken |jq -r .aud[]))"
 if [ "$TOKENAUDIENCES" != "$TESTAUDIENCES" ]; then

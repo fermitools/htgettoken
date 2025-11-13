@@ -2,10 +2,10 @@
 # cached in vault is not close to its expiration
 set -e
 # make sure there's an exchanged token
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
 EXPTIME="$(htdecodetoken|jq -r .exp)"
 # make sure that the same token is returned from cache the second try
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
 EXPTIME2="$(htdecodetoken|jq -r .exp)"
 if [ "$EXPTIME" != "$EXPTIME2" ]; then
     echo "The same token was not received twice from vault!"
@@ -16,7 +16,7 @@ fi
 sleep 2
 NOW="$(date +%s)"
 let MINSECS=$EXPTIME-$NOW+1
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --minsecs=$MINSECS --scopes="$TESTSCOPES"
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --minsecs=$MINSECS --scopes="$TESTSCOPES"
 EXPTIME3="$(htdecodetoken|jq -r .exp)"
 if [ "$EXPTIME" = "$EXPTIME3" ]; then
     echo "The access token was not renewed!"

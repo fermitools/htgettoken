@@ -4,7 +4,7 @@ fi
 
 # assumes vault token is already present
 set -e
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --scopes="$TESTSCOPES"
 
 TOKENSCOPES="$(htdecodetoken|jq -r .scope)"
 if [ "$TOKENSCOPES" != "$TESTSCOPES" ]; then

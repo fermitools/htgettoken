@@ -1,4 +1,4 @@
-URL="$(htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER --showbearerurl --nobearertoken)"
+URL="$(htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER --showbearerurl --nobearertoken)"
 
 if [ -z "$URL" ]; then
     echo "Nothing came from stdout!"
