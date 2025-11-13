@@ -17,7 +17,7 @@ htdecodetoken | jq -r .sub | grep $GROUPSUBPAT
 sleep 2
 NOW="$(date +%s)"
 let MINSECS=$EXPTIME-$NOW+1
-htgettoken --nooidc --nokerberos --nossh -a $VAULTSERVER -i $ISSUER -r $GROUPROLE --minsecs=$MINSECS
+htgettoken --novaulttoken -a $VAULTSERVER -i $ISSUER -r $GROUPROLE --minsecs=$MINSECS
 EXPTIME2="$(htdecodetoken|jq -r .exp)"
 if [ "$EXPTIME" = "$EXPTIME2" ]; then
     echo "The access token was not renewed!"

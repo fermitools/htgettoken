@@ -545,6 +545,9 @@ def main(args=None):
     parser.add_option("--registerssh",
                       action="store_true", default=False,
                       help="register ssh-agent keys (forces oidc authentication)")
+    parser.add_option("--novaulttoken",
+                      action="store_true", default=False,
+                      help="skip all the authentication methods of getting a vault token")
     parser.add_option("-c", "--configdir",
                       metavar="path",
                       default="~/.config/" + prog,
@@ -658,6 +661,10 @@ def main(args=None):
     if not options.quiet and not options.verbose:
         showprogress = True
     if options.registerssh:
+        options.nokerberos = True
+        options.nossh = True
+    if options.novaulttoken:
+        options.nooidc = True
         options.nokerberos = True
         options.nossh = True
 

@@ -4,20 +4,26 @@ htdestroytoken \- remove bearer and vault tokens
 
 .SH SYNOPSIS
 .B htdestroytoken
-[-q]
-
+[-h] [-q] [-f [htgettoken options]]"
 .SH DESCRIPTION
 .B htdestroytoken
-removes a bearer token found by WLCG Bearer Token Discovery and also
-removes a vault token found in the default location used by 
-.BR htgettoken.
-
-Note that the vault server additionally caches bearer tokens, so the
-next time that
+by default removes a bearer token found by WLCG Bearer Token Discovery and
+also removes a vault token found either by the environment variable
+$VAULT_TOKEN_FILE or in the default location used by 
+.BR htgettoken .
+.PP
+Note that the vault server additionally caches refresh tokens and bearer
+tokens, so this alone does not completely clear them.  The
+.I -f
+option (described below) can remove the refresh token to force a new
+oidc authentication.
+If that is not used and
 .B htgettoken
-is run the same bearer token might be returned unless a new one is 
-forced to be retrieved with either oidc authentication or with an
-htgettoken
+is subsequently run and gets a new vault token with one of the non-oidc
+authentication methods, it is possible that the same bearer token might
+be returned from the vault cache unless a new one is forced to be
+retrieved with an
+.B htgettoken
 .I \-\-minsecs
 option.
 
@@ -25,8 +31,26 @@ option.
 The following options are recognized:
 .PP
 .TP
-.BR \-q
-Do removals silently
+.B \-h
+Show help message.
+.TP
+.B \-q
+Do removals silently.
+.TP
+.B \-f [htgettoken options]
+Force a removal of the refresh token in vault before removal of the
+vault token, if the vault token is valid.  This runs
+.B htgettoken
+to locate the path in vault to remove, so sufficient options to locate
+that path such as
+.IR \-a ,
+.I \-i
+and possibly
+.I \-r
+need to either be passed on the rest of the command line or in the
+$HTGETTOKENOPTS environment variable.
+If this option is given and the removal of the refresh token fails,
+the command will exit and not remove the vault or bearer tokens.
 
 .SH AUTHOR
 Dave Dykstra
