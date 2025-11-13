@@ -816,7 +816,7 @@ def main(args=None):
                     response = {'auth' : {'client_token': vaulttoken}}
                     vaulttoken = getVaultToken(vaulttokensecs, response)
                     writeTokenSafely("vault", vaulttoken, vaulttokenfile)
-                elif options.nobearertoken:
+                elif options.nobearertoken and not options.showbearerurl:
                     # force getting a new vault token
                     tryget = False
                 elif vaulttokenminsecs > 0:

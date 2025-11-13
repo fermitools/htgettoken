@@ -74,6 +74,9 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+# - Again fix --showbearerurl to work in combination with --nobearertoken.
+#   That was fixed in 1.17 but broken in 1.21 and 2.0.
+
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.4-1
 - Add the new -s and -f options to the htdecodetoken usage summary.
 - Add a -v option to htdecodetoken to show the token source.
