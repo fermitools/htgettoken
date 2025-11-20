@@ -1,0 +1,32 @@
+Source: htgettoken
+Section: science
+Priority: optional
+Maintainer: Steffen Grunewald <steffen.grunewald@ligo.org>
+Build-Depends: debhelper (>= 10~),
+	dh-python,
+	python3-all-dev,
+	dh-python,
+	python3-pip,
+	python3-setuptools,
+	python3-wheel,
+	python3-paramiko,
+	python3-gssapi,
+	python3-urllib3,
+#	pybuild-plugin-pyproject,
+#	python3-setuptools (>= 61),
+#	python3-setuptools-scm (>= 6.2),
+Standards-Version: 4.1.3
+X-Python3-Version: >= 3.7
+Homepage: https://github.com/fermitools/htgettoken.git
+
+Package: htgettoken
+Architecture: all
+Depends: ${python3:Depends},
+	 ${shlibs:Depends}, ${misc:Depends},
+	python3-paramiko,
+	python3-gssapi,
+	python3-urllib3,
+	jq,
+Recommends: scitokens-cpp
+Description: Get OIDC bearer tokens by interacting with Hashicorp vault
+ htgettoken gets OIDC bearer tokens by interacting with Hashicorp vault

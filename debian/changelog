@@ -1,0 +1,29 @@
+htgettoken (2.4-0.1) unstable; urgency=medium
+
+  * New upstream release 2.4
+  * Some command line options added
+
+ -- Steffen Grunewald <steffen.grunewald@ligo.org>  Mon, 23 Jun 2025 11:30:00 +0200
+
+htgettoken (2.2-2) unstable; urgency=medium
+
+  * New upstream release
+  * Follow 2.2-2 release: patch htgettoken shebang, add -I
+
+ -- Steffen Grunewald <steffen.grunewald@ligo.org>  Fri, 09 May 2025 10:28:00 +0200
+
+htgettoken (2.1-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Steffen Grunewald <steffen.grunewald@ligo.org>  Thu, 27 Feb 2025 10:25:00 +0100
+
+htgettoken (2.0-1) unstable; urgency=medium
+
+  * New upstream release
+  * Ignored spec file update to -2
+  * New dependencies
+  * Build --with=python3 --buildsystem=pybuild, dh-python
+
+ -- Steffen Grunewald <steffen.grunewald@ligo.org>  Sat, 27 Jul 2024 18:45:00 +0200
+
