@@ -41,6 +41,10 @@ htgettoken options provided then
 .I \-\-vaulttokenminttl=6d
 will be automatically added to ensure there are at least 6 days remaining
 on the vault token.
+The vault token will not be renewed when it expires, so
+.B httokensh
+is limited to being run for 6 days; it is intended only for interactive
+use.
 
 The access token will be renewed just under 
 .I \-\-minsecs

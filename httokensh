@@ -30,15 +30,31 @@ GOTSEP=false
 MINSECS=60
 GOTVERBOSE=false
 GOTOUTFILE=false
+OUTFILE=""
 GOTVTFILE=false
 GOTVTTTL=false
+# look at HTGETTOKENOPTS in addition to those options on the command line
+# but don't explicitly pass them again to htgettoken
+HTGETSEP="--HTSEP--"
+set -- $HTGETTOKENOPTS $HTGETSEP "$@"
+DONEHTGETTOKENOPTS=false
 for ARG; do
     if $GOTSEP; then
         COMMANDARGS+=("$ARG")
+    elif $GOTOUTFILE; then
+        OUTFILE="$ARG"
+        GOTOUTFILE=false
+        if $DONEHTGETTOKENOPTS; then
+            HTGETTOKENARGS+=("$ARG")
+        fi
+    elif [ "$ARG" = "$HTGETSEP" ]; then
+        DONEHTGETTOKENOPTS=true
     elif [ "$ARG" = "--" ]; then
         GOTSEP=true
     else
-        HTGETTOKENARGS+=("$ARG")
+        if $DONEHTGETTOKENOPTS; then
+            HTGETTOKENARGS+=("$ARG")
+        fi
         case "$ARG" in
             --minsecs=*)
                 MINSECS="${ARG/--minsecs=/}"
@@ -46,8 +62,11 @@ for ARG; do
             -v|--verbose)
                 GOTVERBOSE=true
                 ;;
-            -o|--outfile=*)
+            -o)
                 GOTOUTFILE=true
+                ;;
+            --outfile=*)
+                OUTFILE="${ARG/--outfile=/}"
                 ;;
             --vaulttokenfile=*)
                 GOTVTFILE=true
@@ -73,12 +92,16 @@ if [ ${#COMMANDARGS[@]} = 0 ]; then
     COMMANDARGS=("$SHELL")
 fi
 
-if [ -z "$BEARER_TOKEN_FILE" ] && ! $GOTOUTFILE; then
-    BTFILE="bt_u$(id -u).sh-$$"
-    if [ -n "$XDG_RUNTIME_DIR" ]; then
-        BEARER_TOKEN_FILE=$XDG_RUNTIME_DIR/$BTFILE
+if [ -z "$BEARER_TOKEN_FILE" ]; then
+    if [ -n "$OUTFILE" ]; then
+        BEARER_TOKEN_FILE="$OUTFILE"
     else
-        BEARER_TOKEN_FILE=/tmp/$BTFILE
+        BTFILE="bt_u$(id -u).sh-$$"
+        if [ -n "$XDG_RUNTIME_DIR" ]; then
+            BEARER_TOKEN_FILE=$XDG_RUNTIME_DIR/$BTFILE
+        else
+            BEARER_TOKEN_FILE=/tmp/$BTFILE
+        fi
     fi
     export BEARER_TOKEN_FILE
 fi
@@ -122,6 +145,19 @@ gettoken()
 # The first time it is possible to get a cached token that is barely
 # beyond the minsecs, so reduce the minimum to just 1 second
 gettoken "not running command" 1
+
+# Remove any --vaulttokenminttl option so the background renewal
+#  gets to be as long as possible
+if [[ "$HTGETTOKENOPTS" = *--vaulttokenminttl* ]]; then
+    HTGETTOKENOPTS="$(echo "$HTGETTOKENOPTS"|sed 's/--vaulttokenminttl=[^ ]*//')"
+fi
+NEWARGS=()
+for ARG in "${HTGETTOKENARGS[@]}"; do
+    if [[ "$ARG" != --vaulttokenminttl* ]]; then
+        NEWARGS+=("$ARG")
+    fi
+done
+HTGETTOKENARGS=("${NEWARGS[@]}")
 
 # make sure the logged info is verbose for easier diagnosis
 if ! $GOTVERBOSE; then
