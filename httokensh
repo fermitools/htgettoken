@@ -146,6 +146,19 @@ gettoken()
 # beyond the minsecs, so reduce the minimum to just 1 second
 gettoken "not running command" 1
 
+# Remove any --vaulttokenminttl option so the background renewal
+#  gets to be as long as possible
+if [[ "$HTGETTOKENOPTS" = *--vaulttokenminttl* ]]; then
+    HTGETTOKENOPTS="$(echo "$HTGETTOKENOPTS"|sed 's/--vaulttokenminttl=[^ ]*//')"
+fi
+NEWARGS=()
+for ARG in "${HTGETTOKENARGS[@]}"; do
+    if [[ "$ARG" != --vaulttokenminttl* ]]; then
+        NEWARGS+=("$ARG")
+    fi
+done
+HTGETTOKENARGS=("${NEWARGS[@]}")
+
 # make sure the logged info is verbose for easier diagnosis
 if ! $GOTVERBOSE; then
     HTGETTOKENARGS+=("-v")

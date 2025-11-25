@@ -83,6 +83,9 @@ rm -rf $RPM_BUILD_ROOT
 # - Fix httokensh to pay attention to htgettoken options in $HTGETTOKENOPTS.
 # - Fix httokensh to correctly locate the log file if a -o or --outfile
 #   is given, instead of writing to ".log" in the current directory.
+# - Fix httokensh to not pass on a --vaulttokenminttl option to the background
+#   htgettoken command, to make the vault token last as long as possible since
+#   it doesn't get renewed.
 
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.4-1
 - Add the new -s and -f options to the htdecodetoken usage summary.
