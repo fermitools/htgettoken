@@ -1,4 +1,4 @@
-1. Update the version in htgettoken and setup.cfg.
+1. Update the version in htgettoken/__init__.py and setup.cfg.
 2. Update the version in htgettoken.spec and add a changelog entry.
 3. Run 'make' to update html version of man page if the man page source
     has changed.
