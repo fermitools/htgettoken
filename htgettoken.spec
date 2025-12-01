@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.4
+Version: 2.5
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -74,18 +74,19 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-# - Add htdestroytoken -f option to force a removal of a refresh token in
-#   vault.
-# - Add htgettoken --novaulttoken option as an alias for --noiodc, --nossh,
-#   and --nokerberos.
-# - Again fix --showbearerurl to work in combination with --nobearertoken.
-#   That was fixed in 1.17 but broke in 1.21 and 2.0.
-# - Fix httokensh to pay attention to htgettoken options in $HTGETTOKENOPTS.
-# - Fix httokensh to correctly locate the log file if a -o or --outfile
-#   is given, instead of writing to ".log" in the current directory.
-# - Fix httokensh to not pass on a --vaulttokenminttl option to the background
-#   htgettoken command, to make the vault token last as long as possible since
-#   it doesn't get renewed.
+* Mon Dec  1 2025 Dave Dykstra <dwd@fnal.gov> 2.5-1
+- Add htdestroytoken -f option to force a removal of a refresh token in
+  vault.
+- Add htgettoken --novaulttoken option as an alias for --noiodc, --nossh,
+  and --nokerberos.
+- Again fix --showbearerurl to work in combination with --nobearertoken.
+  That was fixed in 1.17 but broke in 1.21 and 2.0.
+- Fix httokensh to pay attention to htgettoken options in $HTGETTOKENOPTS.
+- Fix httokensh to correctly locate the log file if a -o or --outfile
+  is given, instead of writing to ".log" in the current directory.
+- Fix httokensh to not pass on a --vaulttokenminttl option to the background
+  htgettoken command, to make the vault token last as long as possible since
+  it doesn't get renewed.
 
 * Fri Jun 20 2025 Dave Dykstra <dwd@fnal.gov> 2.4-1
 - Add the new -s and -f options to the htdecodetoken usage summary.
