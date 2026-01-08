@@ -74,6 +74,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+
+# - Have htdecodetoken take advantage of new scitokens-verify ability
+#   to read from stdin, when available.
+
 * Mon Dec  1 2025 Dave Dykstra <dwd@fnal.gov> 2.5-1
 - Add htdestroytoken -f option to force a removal of a refresh token in
   vault.
