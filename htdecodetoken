@@ -182,8 +182,16 @@ if [ $? != 0 ]; then
     # silently exit if scitokens-verify not found
     exit
 fi
-VERIFYOUT="$($VERIFY $TOKEN)"
+# scitokens-verify from scitokens-cpp versions greater than 1.2.0
+# accepts token on stdin.  That's safer to use so try it first.
+# The echo command is a shell builtin so it won't show up even
+# temporarily in a ps list.
+VERIFYOUT="$(echo $TOKEN | $VERIFY 2>&1)"
 RET=$?
+if [ $RET != 0 ] && [[ "$VERIFYOUT" == *"Insufficient arguments"* ]]; then
+    VERIFYOUT="$($VERIFY $TOKEN)"
+    RET=$?
+fi
 if [ $RET != 0 ]; then
     if [ -n "$VERIFYOUT" ]; then
         echo "$VERIFYOUT" >&2
