@@ -1,6 +1,6 @@
 Summary: Get OIDC bearer tokens by interacting with Hashicorp vault
 Name: htgettoken
-Version: 2.5
+Version: 2.6
 Release: 1%{?dist}
 
 License: BSD-3-Clause
@@ -75,12 +75,13 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 
-# - Have htdecodetoken take advantage of new scitokens-verify ability
-#   to read from stdin, when available.
-# - Add support in htdestroytoken -f for getting a CA cert directory
-#   from ${X509_CERT_DIR:-/etc/grid-security/certificates} or from 
-#   a --capath option, and to get a CA cert file from a --cafile option,
-#   mirroring the behavior of htgettoken.
+* Thu Jan 15 2026 Dave Dykstra <dwd@fnal.gov> 2.6-1
+- Have htdecodetoken take advantage of new scitokens-verify ability
+  to read from stdin, when available.
+- Add support in htdestroytoken -f for getting a CA cert directory
+  from ${X509_CERT_DIR:-/etc/grid-security/certificates} or from 
+  a --capath option, and to get a CA cert file from a --cafile option,
+  mirroring the behavior of htgettoken.
 
 * Mon Dec  1 2025 Dave Dykstra <dwd@fnal.gov> 2.5-1
 - Add htdestroytoken -f option to force a removal of a refresh token in
