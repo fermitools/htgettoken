@@ -19,6 +19,8 @@ usage()
 VERBOSE=true
 RMREFRESH=false
 HTGETOPTS=""
+CAFILE=""
+CAPATH="${X509_CERT_DIR:-/etc/grid-security/certificates}"
 for ARG; do
     case $ARG in
         -h) usage;;
@@ -26,6 +28,11 @@ for ARG; do
         -f) RMREFRESH=true;;
         *)  if $RMREFRESH; then
                 HTGETOPTS="$HTGETOPTS $ARG"
+                if [[ "$ARG" = "--cafile="* ]]; then
+                    CAFILE="${ARG#--cafile=}"
+                elif [[ "$ARG" = "--capath="* ]]; then
+                    CAPATH="${ARG#--capath=}"
+                fi
             else
                 usage
             fi;;
@@ -54,8 +61,15 @@ if $RMREFRESH && [ -f "$VTFILE" ]; then
         echo "  at path $BEARERURL"
     fi
     # be careful to not let the vault token show up in a ps list; send to stdin
+    CURLOPTS="-q -f -m 5"
+    if [ -n "$CAFILE" ]; then
+        CURLOPTS="$CURLOPTS --cacert $CAFILE"
+    fi
+    if [ -n "$CAPATH" ]; then
+        CURLOPTS="$CURLOPTS --capath $CAPATH"
+    fi
     if ! (echo -n "X-Vault-Token: ";cat $VTFILE) | \
-                curl -q -f -m 5 -H @- -X DELETE "$BEARERURL"; then
+                curl $CURLOPTS -H @- -X DELETE "$BEARERURL"; then
         echo "$ME: Unable to delete refresh token" >&2
         exit 3
     fi

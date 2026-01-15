@@ -77,6 +77,10 @@ rm -rf $RPM_BUILD_ROOT
 
 # - Have htdecodetoken take advantage of new scitokens-verify ability
 #   to read from stdin, when available.
+# - Add support in htdestroytoken -f for getting a CA cert directory
+#   from ${X509_CERT_DIR:-/etc/grid-security/certificates} or from 
+#   a --capath option, and to get a CA cert file from a --cafile option,
+#   mirroring the behavior of htgettoken.
 
 * Mon Dec  1 2025 Dave Dykstra <dwd@fnal.gov> 2.5-1
 - Add htdestroytoken -f option to force a removal of a refresh token in
