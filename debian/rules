@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+#export PYBUILD_NAME = htgettoken
+
+%:
+	dh $@ --with=python3 --buildsystem=pybuild
+
+#override_dh_auto_clean:
+
+override_dh_auto_install:
+	dh_auto_install --destdir=$(CURDIR)/debian/tmp
+	cd $(CURDIR)/debian/tmp/usr/bin && \
+	    ln -s htdecodetoken httokendecode
+	mkdir -p \
+	    $(CURDIR)/debian/tmp/usr/share/man/man1
+	cp -pn $(CURDIR)/*.1 \
+	    $(CURDIR)/debian/tmp/usr/share/man/man1/
+	cd $(CURDIR)/debian/tmp/usr/share/man/man1 && \
+	    ln -s htdecodetoken.1.gz httokendecode.1.gz
+
+#override_dh_install:
+#	dh_install
+
+override_dh_python3:
+	# first let dh_python3 handle some shebangs
+	dh_python3
+	# then modify them
+	# makefile semantics require doubling the dollar sign!
+	sed -i '1s/$$/ -I/' $(CURDIR)/debian/*/usr/bin/htgettoken
+	# check the outcome
+	ls $(CURDIR)/debian/*/usr/bin/htgettoken | xargs -rt head -n1
